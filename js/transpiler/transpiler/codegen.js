@@ -21,6 +21,7 @@ import {
   OPERATION,
   getOperationName
 } from './inav_constants.js';
+import { INAV_CONSTANTS } from './constants.js';
 import apiDefinitions from './../api/definitions/index.js';
 
 /**
@@ -83,6 +84,11 @@ class INAVCodeGenerator {
 
     // Throw if any errors were collected during generation
     this.errorHandler.throwIfErrors();
+
+    // Disable any remaining logic conditions to avoid stale entries from prior scripts
+    for (let i = this.lcIndex; i < INAV_CONSTANTS.MAX_LOGIC_CONDITIONS; i++) {
+      this.commands.push(`logic ${i} 0 -1 0 0 0 0 0 0 0`);
+    }
 
     return this.commands;
   }
@@ -639,6 +645,9 @@ class INAVCodeGenerator {
 
     // Handle expression objects (CallExpression, BinaryExpression, etc.)
     if (typeof value === 'object' && value !== null && value.type) {
+      if (value.type === 'Literal' && typeof value.value === 'number') {
+        return { type: OPERAND_TYPE.VALUE, value: value.value };
+      }
       return this.generateExpression(value, activatorId);
     }
 

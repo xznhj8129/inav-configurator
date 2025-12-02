@@ -9,77 +9,106 @@
 
 'use strict';
 
+import { OPERAND_TYPE, WAYPOINT_PARAM } from '../../transpiler/inav_constants.js';
+
 export default {
-  // Current waypoint info
-  number: {
-    type: 'number',
-    desc: 'Current waypoint number',
+  isWp: {
+    type: 'boolean',
+    desc: 'Mission is currently in waypoint mode (NAV_AUTO_WP)',
     readonly: true,
-    inavOperand: { type: 5, value: 0 }
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.IS_WP }
   },
-  
+
+  index: {
+    type: 'number',
+    desc: 'Active waypoint index',
+    readonly: true,
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.WAYPOINT_INDEX }
+  },
+
   action: {
     type: 'number',
-    desc: 'Current waypoint action code',
+    desc: 'Active waypoint action code',
     readonly: true,
-    inavOperand: { type: 5, value: 1 }
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.WAYPOINT_ACTION }
   },
-  
-  // Waypoint position
-  latitude: {
+
+  nextAction: {
     type: 'number',
-    unit: '°',
-    desc: 'Waypoint latitude in degrees',
+    desc: 'Next waypoint action code',
     readonly: true,
-    inavOperand: { type: 5, value: 2 }
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.NEXT_WAYPOINT_ACTION }
   },
-  
-  longitude: {
-    type: 'number',
-    unit: '°',
-    desc: 'Waypoint longitude in degrees',
-    readonly: true,
-    inavOperand: { type: 5, value: 3 }
-  },
-  
-  altitude: {
-    type: 'number',
-    unit: 'cm',
-    desc: 'Waypoint altitude in centimeters',
-    readonly: true,
-    inavOperand: { type: 5, value: 4 }
-  },
-  
-  // Distance to waypoint
-  distance: {
+
+  distanceToNext: {
     type: 'number',
     unit: 'm',
-    desc: 'Distance to current waypoint in meters',
+    desc: 'Distance to active waypoint',
     readonly: true,
-    inavOperand: { type: 5, value: 5 }
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.WAYPOINT_DISTANCE }
   },
-  
-  bearing: {
+
+  distanceFromPrev: {
     type: 'number',
-    unit: '°',
-    desc: 'Bearing to current waypoint in degrees',
+    unit: 'm',
+    desc: 'Distance from previous waypoint',
     readonly: true,
-    range: [0, 359],
-    inavOperand: { type: 5, value: 6 }
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.DISTANCE_FROM_WAYPOINT }
   },
-  
-  // Mission status
-  missionReached: {
+
+  userAction1: {
     type: 'boolean',
-    desc: 'Current waypoint has been reached',
+    desc: 'User action 1 flag on previous waypoint',
     readonly: true,
-    inavOperand: { type: 5, value: 7 }
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.USER1_ACTION }
   },
-  
-  missionValid: {
+
+  userAction2: {
     type: 'boolean',
-    desc: 'Mission is valid and loaded',
+    desc: 'User action 2 flag on previous waypoint',
     readonly: true,
-    inavOperand: { type: 5, value: 8 }
-  }
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.USER2_ACTION }
+  },
+
+  userAction3: {
+    type: 'boolean',
+    desc: 'User action 3 flag on previous waypoint',
+    readonly: true,
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.USER3_ACTION }
+  },
+
+  userAction4: {
+    type: 'boolean',
+    desc: 'User action 4 flag on previous waypoint',
+    readonly: true,
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.USER4_ACTION }
+  },
+
+  nextUserAction1: {
+    type: 'boolean',
+    desc: 'User action 1 flag on active waypoint',
+    readonly: true,
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.USER1_ACTION_NEXT_WP }
+  },
+
+  nextUserAction2: {
+    type: 'boolean',
+    desc: 'User action 2 flag on active waypoint',
+    readonly: true,
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.USER2_ACTION_NEXT_WP }
+  },
+
+  nextUserAction3: {
+    type: 'boolean',
+    desc: 'User action 3 flag on active waypoint',
+    readonly: true,
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.USER3_ACTION_NEXT_WP }
+  },
+
+  nextUserAction4: {
+    type: 'boolean',
+    desc: 'User action 4 flag on active waypoint',
+    readonly: true,
+    inavOperand: { type: OPERAND_TYPE.WAYPOINTS, value: WAYPOINT_PARAM.USER4_ACTION_NEXT_WP }
+  },
 };

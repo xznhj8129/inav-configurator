@@ -9,6 +9,8 @@
 
 'use strict';
 
+import { OPERATION } from '../../transpiler/inav_constants.js';
+
 export default {
   // Throttle Control
   throttleScale: {
@@ -17,7 +19,7 @@ export default {
     desc: 'Scale throttle output (0-100%)',
     readonly: false,
     range: [0, 100],
-    inavOperation: 23 // LOGIC_CONDITION_OVERRIDE_THROTTLE_SCALE
+    inavOperation: OPERATION.OVERRIDE_THROTTLE_SCALE
   },
   
   throttle: {
@@ -26,7 +28,7 @@ export default {
     desc: 'Direct throttle override in microseconds',
     readonly: false,
     range: [1000, 2000],
-    inavOperation: 29 // LOGIC_CONDITION_OVERRIDE_THROTTLE
+    inavOperation: OPERATION.OVERRIDE_THROTTLE
   },
   
   // VTX Control (nested object)
@@ -39,7 +41,7 @@ export default {
         desc: 'VTX power level (0-4)',
         readonly: false,
         range: [0, 4],
-        inavOperation: 25 // LOGIC_CONDITION_SET_VTX_POWER_LEVEL
+        inavOperation: OPERATION.SET_VTX_POWER_LEVEL
       },
       
       band: {
@@ -47,7 +49,7 @@ export default {
         desc: 'VTX frequency band (0-5)',
         readonly: false,
         range: [0, 5],
-        inavOperation: 30 // LOGIC_CONDITION_SET_VTX_BAND
+        inavOperation: OPERATION.SET_VTX_BAND
       },
       
       channel: {
@@ -55,7 +57,7 @@ export default {
         desc: 'VTX channel (1-8)',
         readonly: false,
         range: [1, 8],
-        inavOperation: 31 // LOGIC_CONDITION_SET_VTX_CHANNEL
+        inavOperation: OPERATION.SET_VTX_CHANNEL
       }
     }
   },
@@ -65,7 +67,7 @@ export default {
     type: 'boolean',
     desc: 'Override arm safety switch',
     readonly: false,
-    inavOperation: 22 // LOGIC_CONDITION_OVERRIDE_ARMING_SAFETY
+    inavOperation: OPERATION.OVERRIDE_ARMING_SAFETY
   },
   
   // OSD Override
@@ -74,7 +76,7 @@ export default {
     desc: 'Set OSD layout (0-3)',
     readonly: false,
     range: [0, 3],
-    inavOperation: 32 // LOGIC_CONDITION_SET_OSD_LAYOUT
+    inavOperation: OPERATION.SET_OSD_LAYOUT
   },
   
   // RC Channel Override
@@ -82,7 +84,7 @@ export default {
     type: 'function',
     desc: 'Override RC channel value. Usage: override.rcChannel(channel, value)',
     readonly: false,
-    inavOperation: 38 // LOGIC_CONDITION_RC_CHANNEL_OVERRIDE
+    inavOperation: OPERATION.RC_CHANNEL_OVERRIDE
     // Note: This requires special handling in codegen as it takes channel number as operandA
   },
   
@@ -93,7 +95,7 @@ export default {
     desc: 'Override loiter radius in centimeters',
     readonly: false,
     range: [0, 100000],
-    inavOperation: 41 // LOGIC_CONDITION_LOITER_OVERRIDE
+    inavOperation: OPERATION.LOITER_OVERRIDE
   },
   
   // Min Ground Speed Override
@@ -103,7 +105,7 @@ export default {
     desc: 'Override minimum ground speed',
     readonly: false,
     range: [0, 150],
-    inavOperation: 56 // LOGIC_CONDITION_OVERRIDE_MIN_GROUND_SPEED
+    inavOperation: OPERATION.OVERRIDE_MIN_GROUND_SPEED
   }
   
   // Note: Flight axis angle/rate overrides (operations 45, 46) would need

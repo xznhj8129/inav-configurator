@@ -30,14 +30,39 @@ class ActionDecompiler {
     this.addWarning = context.addWarning;
   }
 
-  /**
-   * Decompile an action to JavaScript statement
-   * @param {Object} lc - Logic condition
-   * @param {Array} allConditions - All conditions for recursive resolution
-   * @returns {string} JavaScript statement
-   */
+   /**
+    * Decompile an action to JavaScript statement
+    * @param {Object} lc - Logic condition
+    * @param {Array} allConditions - All conditions for recursive resolution
+    * @returns {string} JavaScript statement
+    */
   decompile(lc, allConditions = null) {
-    const value = this.decompileOperand(lc.operandBType, lc.operandBValue, allConditions);
+    // For most override operations the value is stored in operandA; gvar/rc/arithmetic use operandB.
+    const useOperandAValue = new Set([
+      OPERATION.OVERRIDE_THROTTLE_SCALE,
+      OPERATION.OVERRIDE_THROTTLE,
+      OPERATION.SET_VTX_POWER_LEVEL,
+      OPERATION.SET_VTX_BAND,
+      OPERATION.SET_VTX_CHANNEL,
+      OPERATION.SET_OSD_LAYOUT,
+      OPERATION.LOITER_OVERRIDE,
+      OPERATION.OVERRIDE_MIN_GROUND_SPEED,
+      OPERATION.SET_HEADING_TARGET,
+      OPERATION.SET_PROFILE,
+      OPERATION.FLIGHT_AXIS_ANGLE_OVERRIDE,
+      OPERATION.FLIGHT_AXIS_RATE_OVERRIDE,
+      OPERATION.SET_GIMBAL_SENSITIVITY,
+      OPERATION.LED_PIN_PWM,
+      OPERATION.PORT_SET,
+      OPERATION.DISABLE_GPS_FIX,
+      OPERATION.RESET_MAG_CALIBRATION
+    ]);
+
+    const valueOperand = useOperandAValue.has(lc.operation)
+      ? { type: lc.operandAType, value: lc.operandAValue }
+      : { type: lc.operandBType, value: lc.operandBValue };
+
+    const value = this.decompileOperand(valueOperand.type, valueOperand.value, allConditions);
 
     switch (lc.operation) {
       case OPERATION.GVAR_SET:

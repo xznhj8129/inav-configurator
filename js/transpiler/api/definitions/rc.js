@@ -28,7 +28,7 @@ for (let i = 1; i <= 18; i++) {
         desc: `Channel ${i} value in microseconds (1000-2000)`,
         readonly: true,
         range: [1000, 2000],
-        inavOperand: { type: 4, value: i } // OPERAND_RC_CHANNEL (1-based)
+        inavOperand: { type: 4, value: i } 
       },
 
       low: {
