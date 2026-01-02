@@ -235,6 +235,18 @@ GUI_control.prototype.updateProfileChange = function(refresh) {
     }
 };
 
+GUI_control.prototype.setDualRxVisibility = function(enabled) {
+    const secondaryTab = $('.tab_receiver_secondary');
+    if (enabled) {
+        secondaryTab.removeClass('is-hidden');
+    } else {
+        secondaryTab.addClass('is-hidden');
+        if (this.active_tab === 'receiver_secondary') {
+            $('.tab_receiver a').trigger('click');
+        }
+    }
+};
+
 GUI_control.prototype.fillSelect = function ($element, values, currentValue, unit) {
     if (unit == null) {
         unit = '';

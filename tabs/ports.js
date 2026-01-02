@@ -15,13 +15,19 @@ TABS.ports.initialize = function (callback) {
 
     var columns = ['data', 'logging', 'sensors', 'telemetry', 'rx', 'peripherals'];
     var mspWarningModal;
+    let dualRxEnabled = false;
 
     if (GUI.active_tab != 'ports') {
         GUI.active_tab = 'ports';
     }
 
     mspHelper.loadSerialPorts(function () {
-        import('./ports.html?raw').then(({default: html}) => GUI.load(html, on_tab_loaded_handler));
+        mspHelper.getSetting('dual_rx_enabled').then(function (setting) {
+            dualRxEnabled = !!(setting && setting.value);
+            GUI.setDualRxVisibility(dualRxEnabled);
+        }).finally(function () {
+            import('./ports.html?raw').then(({default: html}) => GUI.load(html, on_tab_loaded_handler));
+        });
     });
 
     function checkMSPPortCount(excludeCheckbox) {
@@ -117,6 +123,10 @@ TABS.ports.initialize = function (callback) {
                         var functionRule = serialPortHelper.getRules()[i];
                         var functionName = functionRule.name;
 
+                        if (!dualRxEnabled && functionName === 'RX_SERIAL_SECONDARY') {
+                            continue;
+                        }
+
                         if (functionRule.groups.indexOf(column) == -1) {
                             continue;
                         }
@@ -124,7 +134,12 @@ TABS.ports.initialize = function (callback) {
                         var select_e;
                         if (column !== 'telemetry' && column !== 'peripherals' && column !== 'sensors') {
                             var checkboxId = 'functionCheckbox-' + portIndex + '-' + columnIndex + '-' + i;
-                            functions_e.prepend('<span class="function"><input type="checkbox" class="togglemedium" id="' + checkboxId + '" value="' + functionName + '" /><label for="' + checkboxId + '"> ' + functionRule.displayName + '</label></span>');
+                            var checkboxHtml = '<span class="function"><input type="checkbox" class="togglemedium" id="' + checkboxId + '" value="' + functionName + '" /><label for="' + checkboxId + '"> ' + functionRule.displayName + '</label></span>';
+                            if (column === 'rx') {
+                                functions_e.append(checkboxHtml);
+                            } else {
+                                functions_e.prepend(checkboxHtml);
+                            }
 
                             if (serialPort.functions.indexOf(functionName) >= 0) {
                                 var checkbox_e = functions_e.find('#' + checkboxId);

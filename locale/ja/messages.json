@@ -131,6 +131,9 @@
     "tabReceiver": {
         "message": "受信機"
     },
+    "tabSecondaryReceiver": {
+        "message": "セカンダリ受信機"
+    },
     "tabMisc": {
         "message": "その他"
     },
@@ -914,6 +917,24 @@
     "configurationReceiver": {
         "message": "受信機モード"
     },
+    "receiverPrimaryMode": {
+        "message": "プライマリ受信機モード"
+    },
+    "receiverSecondaryMode": {
+        "message": "セカンダリ受信機モード"
+    },
+    "receiverActiveLinkUnknown": {
+        "message": "アクティブリンクは未報告"
+    },
+    "receiverActivePrimary": {
+        "message": "アクティブ"
+    },
+    "receiverActiveSecondary": {
+        "message": "アクティブ"
+    },
+    "receiverInactive": {
+        "message": "待機"
+    },
     "configurationRSSI": {
         "message": "アナログRSSI (信号強度設定)"
     },
@@ -937,6 +958,12 @@
     },
     "serialrx_frSkyFuelUnitHelp": {
         "message": "<strong>燃料</strong> テレメトリセンサーに送信するデータを選択してください。"
+    },
+    "configurationDualReceivers": {
+        "message": "デュアル受信機"
+    },
+    "configurationDualReceiversHelp": {
+        "message": "プライマリ/セカンダリ受信機のフェイルオーバーを有効にします。有効にしたらセカンダリ受信機を設定し、[ポート]タブでポートを割り当ててください。"
     },
     "configurationFeaturesHelp": {
         "message": "<strong>注:</strong> 機能のすべての組み合わせが有効であるとは限りません。フライトコントローラのファームウェアが無効な機能の組み合わせを検出すると、競合する機能が無効になります。<br /><strong>注:</strong> ポートを使用する機能を<span style=\"color: red\">有効にする前に</span>シリアルポートを設定してください。"
@@ -1347,7 +1374,10 @@
         "message": "SmartPort Master"
     },
     "portsFunction_RX_SERIAL": {
-        "message": "シリアル受信"
+        "message": "プライマリ受信機"
+    },
+    "portsFunction_RX_SERIAL_SECONDARY": {
+        "message": "セカンダリ受信機"
     },
     "portsFunction_BLACKBOX": {
         "message": "Blackboxログ"
@@ -1741,6 +1771,9 @@
     },
     "receiverHelp": {
         "message": "マニュアルの[受信機]章をお読みください。シリアルポート(必要な場合)、受信機モード(シリアル / PPM / PWM)、プロトコル(シリアル受信機の場合)、受信機のバインド、チャンネルマップの設定、送信機のチャンネルのエンドポイント / すべてのチャンネルが約1000～2000までのレンジ範囲になるように確認・設定をしてください。中央値(デフォルト 1500)、トリムチャンネルを1500とし、スティックのデッドバンドを設定し、送信機がOFFまたは範囲外のときの動作を指定します。スティックを上側、右側に動かすことですべてのチャンネル値が増加することを確認してください。増加しない場合は、送信機でチャンネル値を反転してください。他のミキシングを送信機に適用しないでください。<br /><span style=\"color: red\">重要:</span> 飛行する前にマニュアルの[フェイルセーフ]章を確認し、フェイルセーフを設定してください。"
+    },
+    "receiverSecondaryHelp": {
+        "message": "デュアル受信機フェイルオーバー用のセカンダリ受信機を設定します。有効にしている場合、ここで受信機タイプとシリアルプロバイダーを設定します。"
     },
     "receiverThrottleMid": {
         "message": "スロットルMID"
@@ -4443,7 +4476,7 @@
         "message": "テレメトリー出力"
     },
     "portsSerialRx": {
-        "message": "シリアル受信"
+        "message": "シリアルRX"
     },
     "portColumnSensors": {
         "message": "センサー"

@@ -130,6 +130,9 @@
     "tabReceiver": {
         "message": "接收机"
     },
+    "tabSecondaryReceiver": {
+        "message": "备用接收机"
+    },
     "tabMisc": {
         "message": "杂项"
     },
@@ -923,6 +926,24 @@
     "configurationReceiver": {
         "message": "接收机"
     },
+    "receiverPrimaryMode": {
+        "message": "主接收机模式"
+    },
+    "receiverSecondaryMode": {
+        "message": "副接收机模式"
+    },
+    "receiverActiveLinkUnknown": {
+        "message": "活跃链路状态未知"
+    },
+    "receiverActivePrimary": {
+        "message": "主链路"
+    },
+    "receiverActiveSecondary": {
+        "message": "副链路"
+    },
+    "receiverInactive": {
+        "message": "待机"
+    },
     "configurationRSSI": {
         "message": "RSSI（接收机信号强度）"
     },
@@ -946,6 +967,12 @@
     },
     "serialrx_frSkyFuelUnitHelp": {
         "message": "选择要发送到 <strong>燃油</strong> 遥测传感器的数据。"
+    },
+    "configurationDualReceivers": {
+        "message": "双接收机"
+    },
+    "configurationDualReceiversHelp": {
+        "message": "启用主/副接收机故障切换。启用后请在此设置副接收机并在“端口”页面分配它的串口。"
     },
     "configurationFeaturesHelp": {
         "message": "<strong>注意:</strong>并非所有组合功能都有效，当飞控固件侦测到端口有无效的配置时将会复位设置。<br /><strong>注意:</strong><span style=\"color: red\">不要</span> 关闭第一个端口的 MSP 功能，除非您确定知道这样做的目的，否则您可能需要重新更新固件并且清空配置"
@@ -1350,7 +1377,10 @@
         "message": "SmartPort Master"
     },
     "portsFunction_RX_SERIAL": {
-        "message": "串行数字接收机"
+        "message": "主接收机"
+    },
+    "portsFunction_RX_SERIAL_SECONDARY": {
+        "message": "备用接收机"
     },
     "portsFunction_BLACKBOX": {
         "message": "黑匣子"
@@ -1751,6 +1781,9 @@
 
     "receiverHelp": {
         "message": "请阅读文档的接收机部分。 按需配置好串口、接收机模式（serial/ppm/pwm），接收机协议，对频好接收机，设置好通道映射，配置通道的最小最大值范围让它们可以覆盖1000到2000。设置中位值（默认1500），微调通道到1500，配置摇杆死区，确认当遥控器关闭或超出范围时接收机的行为（失控保护）。<br /><span class=\"message-negative\">重要：</span> 飞行前阅读文档的失控保护章节并且配置好失控保护。"
+    },
+    "receiverSecondaryHelp": {
+        "message": "在启用双接收机时配置备用接收机。这里设置接收机类型和串行协议，然后在“端口”页面分配副接收机串口。"
     },
     "receiverThrottleMid": {
         "message": "油门中位"
@@ -4469,7 +4502,7 @@
         "message": "遥测输出"
     },
     "portsSerialRx": {
-        "message": "串行数字接收机"
+        "message": "串口RX"
     },
     "portColumnSensors": {
         "message": "传感器"

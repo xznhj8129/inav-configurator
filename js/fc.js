@@ -332,7 +332,8 @@ var FC = {
             battery_capacity: 0,
             battery_capacity_warning: 0,
             battery_capacity_critical: 0,
-            battery_capacity_unit: 'mAh'
+            battery_capacity_unit: 'mAh',
+            activeRX: 0
         };
 
         this.BATTERY_CONFIG = {

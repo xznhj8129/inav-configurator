@@ -35,9 +35,10 @@
         </div>
         <div class="fc_column half" style="margin-left: 20px;">
             
-            <div class="gui_box grey config-section">
+            <div class="gui_box grey config-section receiver-primary">
                 <div class="gui_box_titlebar">
-                    <div class="spacer_box_title" data-i18n="configurationReceiver"></div>
+                    <div class="spacer_box_title" data-i18n="receiverPrimaryMode"></div>
+                    <div class="receiver-active-indicator receiver-active-indicator--primary"><span data-i18n="receiverActiveLinkUnknown"></span></div>
                 </div>
                 <div class="spacer_box">
                     <div class="select">
@@ -62,6 +63,41 @@
                         </div><div class="select">
                             <select id="serialrx_halfduplex" data-setting="serialrx_halfduplex"></select>
                             <label for="serialrx_halfduplex">
+                                <span data-i18n="serialrx_halfduplex"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="gui_box grey config-section receiver-secondary is-hidden">
+                <div class="gui_box_titlebar">
+                    <div class="spacer_box_title" data-i18n="receiverSecondaryMode"></div>
+                    <div class="receiver-active-indicator receiver-active-indicator--secondary"><span data-i18n="receiverActiveLinkUnknown"></span></div>
+                </div>
+                <div class="spacer_box">
+                    <div class="select">
+                        <select id="receiver_type_secondary" data-setting="receiver_type_secondary"></select>
+                        <label for="receiver_type_secondary">
+                            <span data-i18n="receiverType"></span>
+                        </label>
+                    </div>
+                    <div id="serialrx_provider_secondary-wrapper">
+                        <div class="info-box ok-box" data-i18n="configurationSerialRXHelp"></div>
+                        <div class="select">
+                            <select id="serialrx_provider_secondary" data-setting="serialrx_provider_secondary"></select>
+                            <label for="serialrx_provider_secondary">
+                                <span data-i18n="configurationSerialRX"></span>
+                            </label>
+                        </div>
+                        <div class="select">
+                            <select id="serialrx_inverted_secondary" data-setting="serialrx_inverted_secondary"></select>
+                            <label for="serialrx_inverted_secondary">
+                                <span data-i18n="serialrx_inverted"></span>
+                            </label>
+                        </div><div class="select">
+                            <select id="serialrx_halfduplex_secondary" data-setting="serialrx_halfduplex_secondary"></select>
+                            <label for="serialrx_halfduplex_secondary">
                                 <span data-i18n="serialrx_halfduplex"></span>
                             </label>
                         </div>

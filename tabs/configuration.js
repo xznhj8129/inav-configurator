@@ -119,6 +119,18 @@ TABS.configuration.initialize = function (callback, scrollPosition) {
 
         features.updateUI($('.tab-configuration'), FC.FEATURES);
 
+        settingsPromise.then(function () {
+            var dualRxToggle = $('#dual_rx_enabled');
+            if (dualRxToggle.length) {
+                GUI.setDualRxVisibility(dualRxToggle.is(':checked'));
+                dualRxToggle.on('change', function () {
+                    GUI.setDualRxVisibility($(this).is(':checked'));
+                });
+            } else {
+                GUI.setDualRxVisibility(false);
+            }
+        });
+
         // translate to user-selected language
        i18n.localize();;
 

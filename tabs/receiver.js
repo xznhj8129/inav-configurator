@@ -49,52 +49,113 @@ TABS.receiver.initialize = function (callback) {
         // translate to user-selected language
        i18n.localize();;
 
-        let $receiverMode = $('#receiver_type'),
-            $serialWrapper = $('#serialrx_provider-wrapper');
+        const $primaryMode = $('#receiver_type');
+        const $primaryWrapper = $('#serialrx_provider-wrapper');
+        const $primaryProvider = $("#serialrx_provider");
+        const $secondaryMode = $('#receiver_type_secondary');
+        const $secondaryWrapper = $('#serialrx_provider_secondary-wrapper');
+        const $secondaryProvider = $("#serialrx_provider_secondary");
+        const $primaryTitle = $('.receiver-primary .spacer_box_title');
+        const $secondaryTitle = $('.receiver-secondary .spacer_box_title');
+        const $primaryIndicator = $('.receiver-active-indicator--primary span');
+        const $secondaryIndicator = $('.receiver-active-indicator--secondary span');
 
-        // Order Serial Rx providers
-        let serialRxProviders = $('#serialrx_provider option');
-        let selectedRxProvider = $('#serialrx_provider').val();
-        serialRxProviders.sort(function(a,b) {
-            if (a.text > b.text) {
-                return 1;
-            } else if (a.text < b.text) {
-                return -1;
-            } else {
-                return 0;
-            }
-        });
+        function setupReceiverMode($modeSelect, $serialWrapper, $providerSelect, enableFrSky) {
+            let serialRxProviders = $providerSelect.find('option');
+            const selectedRxProvider = $providerSelect.val();
+            serialRxProviders.sort(function(a,b) {
+                if (a.text > b.text) {
+                    return 1;
+                } else if (a.text < b.text) {
+                    return -1;
+                } else {
+                    return 0;
+                }
+            });
+            $providerSelect.empty().append(serialRxProviders);
+            $providerSelect.val(selectedRxProvider);
 
-        let $serialRxProvider = $("#serialrx_provider");
-        $serialRxProvider.empty().append(serialRxProviders);
-        $serialRxProvider.val(selectedRxProvider);
+            $providerSelect.on('change', function() {
+                if (!enableFrSky) {
+                    return;
+                }
+                const frSkyRXProviders = ["SBUS", "FPORT", "FPORT2", "FBUS"];
+                
+                if (frSkyRXProviders.includes($(this).find("option:selected").text())) {
+                    $("#frSkyOptions").show();
+                } else {
+                    $("#frSkyOptions").hide();
+                }
+            });
 
-        $serialRxProvider.on('change', function() {
-            const frSkyRXProviders = ["SBUS", "FPORT", "FPORT2", "FBUS"];
-            
-            if (frSkyRXProviders.includes($(this).find("option:selected").text())) {
-                $("#frSkyOptions").show();
-            } else {
-                $("#frSkyOptions").hide();
-            }
-        });
+            $modeSelect.on('change', function () {
+                if ($(this).find("option:selected").text() == "SERIAL") {
+                    $serialWrapper.show();
+                    $providerSelect.trigger("change");
+                    $modeSelect.parent().removeClass("no-bottom-border");
+                } else {
+                    $serialWrapper.hide();
+                    if (enableFrSky) {
+                        $("#frSkyOptions").hide();
+                    }
+                    $modeSelect.parent().addClass("no-bottom-border");
+                }
+            });
+        }
 
-        $receiverMode.on('change', function () {
-            if ($(this).find("option:selected").text() == "SERIAL") {
-                $serialWrapper.show();
-                $serialRxProvider.trigger("change");
-                $receiverMode.parent().removeClass("no-bottom-border");
-            } else {
-                $serialWrapper.hide();
-                $("#frSkyOptions").hide();
-                $receiverMode.parent().addClass("no-bottom-border");
-            }
-        });
+        setupReceiverMode($primaryMode, $primaryWrapper, $primaryProvider, true);
+        setupReceiverMode($secondaryMode, $secondaryWrapper, $secondaryProvider, false);
 
         // Wait for settings to load before triggering change events
         // Trigger receiverMode which will trigger serialRxProvider when mode is SERIAL
+        function updateActiveIndicators(enabled) {
+            if (!enabled) {
+                $primaryIndicator.text('');
+                $secondaryIndicator.text('');
+                return;
+            }
+            switch (FC.MISC.activeRX) {
+                case 0:
+                    $primaryIndicator.text(i18n.getMessage('receiverActivePrimary'));
+                    $secondaryIndicator.text(i18n.getMessage('receiverInactive'));
+                    break;
+                case 1:
+                    $primaryIndicator.text(i18n.getMessage('receiverInactive'));
+                    $secondaryIndicator.text(i18n.getMessage('receiverActiveSecondary'));
+                    break;
+                default:
+                    $primaryIndicator.text(i18n.getMessage('receiverActiveLinkUnknown'));
+                    $secondaryIndicator.text(i18n.getMessage('receiverActiveLinkUnknown'));
+                    break;
+            }
+        }
+
         settingsPromise.then(function() {
-            $receiverMode.trigger("change");
+            $primaryMode.trigger("change");
+            $secondaryMode.trigger("change");
+            mspHelper.getSetting("dual_rx_enabled").then(function (s) {
+                const enabled = !!(s && s.value);
+                $('.receiver-secondary').toggleClass('is-hidden', !enabled);
+                if (!enabled) {
+                    $('.receiver-active-indicator--primary').hide();
+                    $('.receiver-active-indicator--secondary').hide();
+                    $primaryTitle.text(i18n.getMessage('configurationReceiver'));
+                    $secondaryTitle.text('');
+                    updateActiveIndicators(false);
+                } else {
+                    $('.receiver-active-indicator--primary').show();
+                    $('.receiver-active-indicator--secondary').show();
+                    $primaryTitle.text(i18n.getMessage('receiverPrimaryMode'));
+                    $secondaryTitle.text(i18n.getMessage('receiverSecondaryMode'));
+                    updateActiveIndicators(true);
+                }
+            }).catch(function () {
+                $('.receiver-secondary').addClass('is-hidden');
+                $('.receiver-active-indicator').hide();
+                $primaryTitle.text(i18n.getMessage('configurationReceiver'));
+                $secondaryTitle.text('');
+                updateActiveIndicators(false);
+            });
         });
 
         // fill in data from RC_tuning

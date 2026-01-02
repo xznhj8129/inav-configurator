@@ -137,6 +137,9 @@
     "tabReceiver": {
         "message": "Receiver"
     },
+    "tabSecondaryReceiver": {
+        "message": "Secondary Receiver"
+    },
     "tabMisc": {
         "message": "Miscellaneous"
     },
@@ -930,6 +933,24 @@
     "configurationReceiver": {
         "message": "Receiver Mode"
     },
+    "receiverPrimaryMode": {
+        "message": "Primary Receiver Mode"
+    },
+    "receiverSecondaryMode": {
+        "message": "Secondary Receiver Mode"
+    },
+    "receiverActiveLinkUnknown": {
+        "message": "Active link status unavailable"
+    },
+    "receiverActivePrimary": {
+        "message": "Active"
+    },
+    "receiverActiveSecondary": {
+        "message": "Active"
+    },
+    "receiverInactive": {
+        "message": "Standby"
+    },
     "configurationRSSI": {
         "message": "RSSI (Signal Strength)"
     },
@@ -953,6 +974,12 @@
     },
     "serialrx_frSkyFuelUnitHelp": {
         "message": "Select the data that you want sent to the <strong>fuel</strong> telemetry sensor."
+    },
+    "configurationDualReceivers": {
+        "message": "Dual Receivers"
+    },
+    "configurationDualReceiversHelp": {
+        "message": "Enables primary/secondary receiver failover. When enabled, configure the secondary receiver and assign its serial port in the Ports tab."
     },
     "configurationFeaturesHelp": {
         "message": "<strong>Note:</strong> Not all combinations of features are valid.  When the flight controller firmware detects invalid feature combinations conflicting features will be disabled.<br /><strong>Note:</strong> Configure serial ports <span style=\"color: red\">before</span> enabling the features that will use the ports."
@@ -1366,7 +1393,10 @@
         "message": "SmartPort Master"
     },
     "portsFunction_RX_SERIAL": {
-        "message": "Serial RX"
+        "message": "Primary RX"
+    },
+    "portsFunction_RX_SERIAL_SECONDARY": {
+        "message": "Secondary RX"
     },
     "portsFunction_BLACKBOX": {
         "message": "Blackbox"
@@ -1761,6 +1791,9 @@
 
     "receiverHelp": {
         "message": "Please read receiver chapter of the documentation.  Configure serial port (if required), receiver mode (serial/ppm/pwm), provider (for serial receivers), bind receiver, set channel map, configure channel endpoints/range on TX so that all channels go from ~1000 to ~2000.  Set midpoint (default 1500), trim channels to 1500, configure stick deadband, verify behaviour when TX is off or out of range. Make sure that the channel values all increase when you push the sticks up and to the right. If not, reverse the channel in the TX. Do not apply any other mixing in the TX.<br /><span style=\"color: red\">IMPORTANT:</span> Before flying read failsafe chapter of documentation and configure failsafe."
+    },
+    "receiverSecondaryHelp": {
+        "message": "Configure the secondary receiver used for dual-receiver failover. The settings mirror the primary receiver; set the receiver type and serial provider here when Dual Receivers is enabled."
     },
     "receiverThrottleMid": {
         "message": "Throttle MID"
@@ -4488,7 +4521,7 @@
         "message": "Telemetry"
     },
     "portsSerialRx": {
-        "message": "RX"
+        "message": "Serial RX"
     },
     "portColumnSensors": {
         "message": "Sensors"

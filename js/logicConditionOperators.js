@@ -345,6 +345,18 @@ const LOGIC_OPERATORS = {
         hasOperand: [true, false],
         output: "boolean"
     },
+    56: {
+        name: "Min ground speed override",
+        operandType: "Set Flight Parameter",
+        hasOperand: [true, false],
+        output: "boolean"
+    },
+    57: {
+        name: "Select RX link",
+        operandType: "Set Flight Parameter",
+        hasOperand: [true, false],
+        output: "boolean"
+    },
 };
 
 export { LOGIC_OPERATORS };

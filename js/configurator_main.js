@@ -619,4 +619,3 @@ String.prototype.format = function () {
         return args[i] !== void 0 ? args[i] : "{" + (i - args.length) + "}";
     });
 };
-

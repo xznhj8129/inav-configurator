@@ -358,6 +358,11 @@ var mspHelper = (function () {
                 FC.MISC.battery_capacity_critical = data.getUint32(offset, true);
                 offset += 4;
                 FC.MISC.battery_capacity_unit = (data.getUint8(offset++) ? 'mWh' : 'mAh');
+                if (offset < dataHandler.message_length_expected) {
+                    FC.MISC.activeRX = data.getUint8(offset++);
+                } else {
+                    FC.MISC.activeRX = 0;
+                }
                 break;
             case MSPCodes.MSPV2_INAV_SET_MISC:
                 console.log('MISC INAV Configuration saved');
