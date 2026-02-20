@@ -22,6 +22,7 @@ const OPERAND_TYPE = {
   GVAR: 5,
   PID: 6,
   WAYPOINTS: 7,
+  ROI: 8,
 };
 
 /**
@@ -187,6 +188,22 @@ const WAYPOINT_PARAM = {
 };
 
 /**
+ * ROI parameters (operand value for OPERAND_TYPE.ROI)
+ */
+const ROI_PARAM = {
+  ACTIVE: 0,
+  DISTANCE: 1,
+  GROUND_DISTANCE: 2,
+  ALTITUDE: 3,
+  BEARING: 4,
+  ELEVATION: 5,
+  PARAM1: 6,
+  PARAM2: 7,
+  ALT_DATUM: 8,
+  ACTION: 9,
+};
+
+/**
  * RC channel configuration
  */
 const RC_CHANNEL = {
@@ -272,6 +289,7 @@ const OPERATION_NAMES = {
   [53]: 'Disable Gps Fix',
   [54]: 'Reset Mag Calibration',
   [55]: 'Set Gimbal Sensitivity',
+  [56]: 'Override Min Ground Speed',
 };
 
 /**
@@ -331,10 +349,30 @@ const FLIGHT_PARAM_NAMES = {
 };
 
 /**
+ * Human-readable ROI parameter names
+ */
+const ROI_PARAM_NAMES = {
+  [0]: 'active',
+  [1]: 'distance',
+  [2]: 'groundDistance',
+  [3]: 'altitude',
+  [4]: 'bearing',
+  [5]: 'elevation',
+  [6]: 'param1',
+  [7]: 'param2',
+  [8]: 'altDatum',
+  [9]: 'action',
+};
+
+/**
  * Helper functions
  */
 function getFlightParamName(paramId) {
   return FLIGHT_PARAM_NAMES[paramId] || `unknown_param_${paramId}`;
+}
+
+function getROIParamName(paramId) {
+  return ROI_PARAM_NAMES[paramId] || `unknown_roi_param_${paramId}`;
 }
 
 function getOperationName(operationId) {
@@ -355,7 +393,9 @@ export {
   FLIGHT_PARAM,
   FLIGHT_MODE,
   WAYPOINT_PARAM,
+  ROI_PARAM,
   FLIGHT_PARAM_NAMES,
+  ROI_PARAM_NAMES,
   OPERATION_NAMES,
   RC_CHANNEL,
   GVAR_CONFIG,
@@ -363,6 +403,7 @@ export {
 
   // Helper functions
   getFlightParamName,
+  getROIParamName,
   getOperationName,
   isValidGvarIndex,
   isValidRCChannel
