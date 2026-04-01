@@ -4,6 +4,7 @@ import MSPCodes from './msp/MSPCodes';
 import mspQueue from './serial_queue';
 import eventFrequencyAnalyzer from './eventFrequencyAnalyzer';
 import timeout from './timeouts';
+import CONFIGURATOR from './data_storage';
 
 /**
  *
@@ -90,6 +91,7 @@ var MSP = {
     lastFrameReceivedMs: 0,
 
     processData: null,
+    transportTransform: null,
 
     init() {
         mspQueue.setPutCallback(this.putCallback);
@@ -98,6 +100,10 @@ var MSP = {
 
     setProcessData(cb) {
         this.processData = cb;
+    },
+
+    setTransportTransform(cb) {
+        this.transportTransform = cb;
     },
 
     read: function (readInfo) {
@@ -266,6 +272,9 @@ var MSP = {
         try {
             if (this.message_checksum == expected_checksum) {
                 // message received, process
+                if (CONFIGURATOR.mavlinkTunnelActive) {
+                    console.log('mavlinkTunnel rxMsp code=' + this.code + ' payloadBytes=' + this.message_length_received);
+                }
                 this.processData(this);
                 this.lastFrameReceivedMs = Date.now();
             } else {
@@ -369,7 +378,7 @@ var MSP = {
 
         var message = new MspMessageClass();
         message.code = code;
-        message.messageBody = buffer;
+        message.messageBody = this.transportTransform ? this.transportTransform(buffer, code) : buffer;
         message.onFinish = callback_msp;
         message.onSend = callback_sent;
 
@@ -413,6 +422,7 @@ var MSP = {
     disconnect_cleanup() {
         this.state = 0; // reset packet state for "clean" initial entry (this is only required if user hot-disconnects)
         this.packet_error = 0; // reset CRC packet error counter for next session
+        this.transportTransform = null;
 
         this.callbacks_cleanup();
     },

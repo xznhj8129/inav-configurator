@@ -143,7 +143,7 @@ var mspQueue = function () {
             publicScope.setHardLock();
 
             request.timer = setTimeout(function () {
-                console.log('MSP data request timed-out: ' + request.code);
+                console.log('mspTimeout code=' + request.code + ' retries=' + request.retryCounter + ' bytes=' + request.messageBody.byteLength + ' queue=' + privateScope.queue.length + ' tunnel=' + CONFIGURATOR.mavlinkTunnelActive);
                 mspDeduplicationQueue.remove(request.code);
                 /*
                  * Remove current callback
