@@ -11,39 +11,133 @@ import jBox from 'jbox';
 
 const portsTab = {};
 
+const VCP_IDENTIFIER = 20;
+const RECEIVER = serialPortHelper.RECEIVER;
+
 portsTab.initialize = function (callback) {
 
-    var columns = ['data', 'logging', 'sensors', 'telemetry', 'rx', 'peripherals'];
-    var mspWarningModal;
+    // One decoded {identifier, function, type, baudrate} per editable port.
+    // This array is the source of truth for the tab; the selects are rendered
+    // from it and every change handler writes back to it.
+    let uiPorts = [];
+    let previousPorts = {};
+    let mspWarningModal;
+    let receiverType = null;
+    let serialRxProvider = null;
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;
     }
 
     mspHelper.loadSerialPorts(function () {
-        import('./ports.html?raw').then(({default: html}) => GUI.load(html, on_tab_loaded_handler));
+        loadReceiverSettings(function () {
+            import('./ports.html?raw').then(({default: html}) => GUI.load(html, on_tab_loaded_handler));
+        });
     });
 
-    function checkMSPPortCount(excludeCheckbox) {
-        let mspCount = 0;
-
-        $('.tab-ports .portConfiguration').each(function () {
-            const $portConfig = $(this);
-
-            // Check each MSP checkbox in this port configuration
-            $portConfig.find('input:checkbox[value="MSP"]').each(function() {
-                const $checkbox = $(this);
-                // Skip the checkbox we're currently changing (to get "before" count)
-                if (excludeCheckbox && $checkbox.is(excludeCheckbox)) {
-                    return;
+    /*
+     * The Receiver tab owns which protocol the receiver speaks; this tab only
+     * says which port it is on. Both settings are read here so a port
+     * assignment that contradicts the configured provider can be caught on save.
+     */
+    function loadReceiverSettings(done) {
+        function readSetting(name) {
+            return mspHelper.getSetting(name).then(function (setting) {
+                if (setting && setting.setting && setting.setting.table && setting.setting.table.values) {
+                    return setting.setting.table.values[setting.value];
                 }
-                if ($checkbox.is(':checked')) {
-                    mspCount++;
-                }
+                return null;
             });
-        });
+        }
 
-        return mspCount;
+        Promise.all([readSetting('receiver_type'), readSetting('serialrx_provider')]).then(function (values) {
+            receiverType = values[0];
+            serialRxProvider = values[1];
+        }).catch(function () {
+            // An FC that cannot report these simply gets no cross-tab validation.
+            receiverType = null;
+            serialRxProvider = null;
+        }).then(done);
+    }
+
+    function receiverIsSerial() {
+        return receiverType === 'SERIAL';
+    }
+
+    function receiverMustBeMavlink() {
+        return receiverIsSerial() && serialRxProvider === 'MAVLINK';
+    }
+
+    function typeOptionsFor(category) {
+        const none = { value: '', label: i18n.getMessage('portsTypeNone') };
+        const receiver = { value: RECEIVER, label: i18n.getMessage('portsTypeReceiver') };
+
+        switch (category) {
+            case 'SERIAL_RX':
+                return [receiver];
+            case 'MAVLINK':
+                // A MAVLink port without the receiver role still does something -
+                // it is a GCS/telemetry link - so do not label it like "off".
+                return [{ value: '', label: i18n.getMessage('portsTypeTelemetry') }, receiver];
+            case 'TELEMETRY':
+            case 'SENSOR':
+            case 'PERIPHERAL':
+                return serialPortHelper.getFunctionsForCategory(category).map(function (rule) {
+                    return { value: rule.name, label: rule.displayName };
+                });
+            default:
+                return [none];
+        }
+    }
+
+    function defaultTypeFor(category) {
+        const options = typeOptionsFor(category);
+        if (category === 'SERIAL_RX') {
+            return RECEIVER;
+        }
+        if (category === 'TELEMETRY' || category === 'SENSOR' || category === 'PERIPHERAL') {
+            return options.length ? options[0].value : '';
+        }
+        return '';
+    }
+
+    function defaultBaudFor(uiPort) {
+        const rule = serialPortHelper.getRuleByName(uiPort.type);
+        if (rule && typeof rule.defaultBaud !== 'undefined') {
+            return String(rule.defaultBaud);
+        }
+
+        const baudField = serialPortHelper.getBaudFieldForCategory(uiPort.function);
+        if (!baudField) {
+            return '';
+        }
+        return baudField === 'telemetry_baudrate' ? 'AUTO' : '115200';
+    }
+
+    /* The receiver role is global: assigning it to a port takes it off any other. */
+    function claimReceiver(identifier) {
+        uiPorts.forEach(function (uiPort) {
+            if (uiPort.identifier === identifier || uiPort.type !== RECEIVER) {
+                return;
+            }
+
+            if (uiPort.function === 'MAVLINK') {
+                // A MAVLink port without the receiver role is still a valid
+                // GCS/telemetry link, so only the role is taken away.
+                uiPort.type = '';
+            } else {
+                // Serial RX exists only to carry the receiver.
+                uiPort.function = 'NONE';
+                uiPort.type = '';
+                uiPort.baudrate = '';
+            }
+        });
+    }
+
+    function countMspPorts() {
+        return uiPorts.filter(function (uiPort) {
+            return uiPort.function === 'MSP';
+        }).length;
     }
 
     function showMSPWarning() {
@@ -52,176 +146,196 @@ portsTab.initialize = function (callback) {
         }
     }
 
-    function update_ui() {
+    function renderRow($row, uiPort) {
+        const $function = $row.find('select.port-function');
+        const $type = $row.find('select.port-type');
+        const $baud = $row.find('select.port-baud');
 
-        $(".tab-ports").addClass("supported");
+        $function.empty();
+        serialPortHelper.CATEGORIES.forEach(function (category) {
+            $function.append($('<option/>', { value: category, text: i18n.getMessage('portsCategory_' + category) }));
+        });
+        $function.val(uiPort.function);
 
-        var i,
-            $elements;
+        $type.empty();
+        const typeOptions = typeOptionsFor(uiPort.function);
+        typeOptions.forEach(function (option) {
+            $type.append($('<option/>', { value: option.value, text: option.label }));
+        });
+        $type.val(uiPort.type);
+        $type.prop('disabled', typeOptions.length < 2);
 
-        $elements = $('select.sensors_baudrate');
-        for (i = 0; i < serialPortHelper.getBauds('SENSOR').length; i++) {
-            $elements.append('<option value="' + serialPortHelper.getBauds('SENSOR')[i] + '">' + serialPortHelper.getBauds('SENSOR')[i] + '</option>');
+        $baud.empty();
+        const bauds = serialPortHelper.getBaudsForCategory(uiPort.function);
+        if (bauds) {
+            // A function can pin a baud its category's list does not carry -
+            // CRSF_SENSOR runs at 420000, which is not in the sensor list - so
+            // offer the port's own value too rather than render a blank select.
+            const options = bauds.slice();
+            if (uiPort.baudrate && options.indexOf(String(uiPort.baudrate)) === -1) {
+                options.push(String(uiPort.baudrate));
+            }
+
+            options.forEach(function (baud) {
+                $baud.append($('<option/>', { value: baud, text: baud }));
+            });
+            $baud.val(uiPort.baudrate);
+            const rule = serialPortHelper.getRuleByName(uiPort.type);
+            $baud.prop('disabled', !!(rule && rule.lockedBaud));
+        } else {
+            $baud.append($('<option/>', { value: '', text: i18n.getMessage('portsTypeNone') }));
+            $baud.val('');
+            $baud.prop('disabled', true);
         }
-
-        $elements = $('select.msp_baudrate');
-        for (i = 0; i < serialPortHelper.getBauds('MSP').length; i++) {
-            $elements.append('<option value="' + serialPortHelper.getBauds('MSP')[i] + '">' + serialPortHelper.getBauds('MSP')[i] + '</option>');
-        }
-
-        $elements = $('select.telemetry_baudrate');
-        for (i = 0; i < serialPortHelper.getBauds('TELEMETRY').length; i++) {
-            $elements.append('<option value="' + serialPortHelper.getBauds('TELEMETRY')[i] + '">' + serialPortHelper.getBauds('TELEMETRY')[i] + '</option>');
-        }
-
-        $elements = $('select.peripherals_baudrate');
-        for (i = 0; i < serialPortHelper.getBauds('PERIPHERAL').length; i++) {
-            $elements.append('<option value="' + serialPortHelper.getBauds('PERIPHERAL')[i] + '">' + serialPortHelper.getBauds('PERIPHERAL')[i] + '</option>');
-        }
-
-        var ports_e = $('.tab-ports .ports');
-        var port_configuration_template_e = $('#tab-ports-templates .portConfiguration');
-
-        for (var portIndex = 0; portIndex < FC.SERIAL_CONFIG.ports.length; portIndex++) {
-            var port_configuration_e = port_configuration_template_e.clone();
-            var serialPort = FC.SERIAL_CONFIG.ports[portIndex];
-
-            port_configuration_e.data('serialPort', serialPort);
-
-            //Append only port different than USB VCP
-            if (serialPort.identifier != 20) {
-
-                port_configuration_e.find('select.msp_baudrate').val(serialPort.msp_baudrate);
-                port_configuration_e.find('select.telemetry_baudrate').val(serialPort.telemetry_baudrate);
-                port_configuration_e.find('select.sensors_baudrate').val(serialPort.sensors_baudrate);
-                port_configuration_e.find('select.peripherals_baudrate').val(serialPort.peripherals_baudrate);
-
-                port_configuration_e.find('.identifier').text(serialPortHelper.getPortName(serialPort.identifier));
-                if (serialPort.identifier >= 30) {
-                    port_configuration_e.find('.softSerialWarning').css("display", "inline")
-                } else {
-                    port_configuration_e.find('.softSerialWarning').css("display", "none")
-                }
-
-                port_configuration_e.data('index', portIndex);
-                port_configuration_e.data('port', serialPort);
-
-                for (var columnIndex = 0; columnIndex < columns.length; columnIndex++) {
-                    let column = columns[columnIndex];
-
-                    var functions_e = $(port_configuration_e).find('.functionsCell-' + column);
-                    let functions_e_id = "portFunc-" + column + "-" + portIndex;
-                    functions_e.attr("id", functions_e_id);
-
-                    for (i = 0; i < serialPortHelper.getRules().length; i++) {
-                        var functionRule = serialPortHelper.getRules()[i];
-                        var functionName = functionRule.name;
-
-                        if (functionRule.groups.indexOf(column) == -1) {
-                            continue;
-                        }
-
-                        var select_e;
-                        if (column !== 'telemetry' && column !== 'peripherals' && column !== 'sensors') {
-                            var checkboxId = 'functionCheckbox-' + portIndex + '-' + columnIndex + '-' + i;
-                            functions_e.prepend('<span class="function"><input type="checkbox" class="togglemedium" id="' + checkboxId + '" value="' + functionName + '" /><label for="' + checkboxId + '"> ' + functionRule.displayName + '</label></span>');
-
-                            if (serialPort.functions.indexOf(functionName) >= 0) {
-                                var checkbox_e = functions_e.find('#' + checkboxId);
-                                checkbox_e.prop("checked", true);
-                            }
-
-                        } else {
-
-                            var selectElementName = 'function-' + column;
-                            var selectElementSelector = 'select[name=' + selectElementName + ']';
-                            select_e = functions_e.find(selectElementSelector);
-                            
-                            if (select_e.length == 0) {
-                                functions_e.prepend('<span class="function"><select id="' + selectElementName + '" name="' + selectElementName + '" class="function-select ' + selectElementName + '" /></span>');
-                                
-                                functions_e.find('#' + selectElementName).on('change', () => {
-                                    updateDefaultBaud(functions_e_id, column);
-                                });
-                                
-                                select_e = functions_e.find(selectElementSelector);
-                                var disabledText = i18n.getMessage('portsTelemetryDisabled');
-                                select_e.append('<option value="">' + disabledText + '</option>');
-                            }
-                            select_e.append('<option value="' + functionName + '">' + functionRule.displayName + '</option>');
-
-                            if (serialPort.functions.indexOf(functionName) >= 0) {
-                                select_e.val(functionName);
-                                updateDefaultBaud(functions_e_id, column);
-                            }
-                        }
-                    }
-                }
-                ports_e.find('tbody').append(port_configuration_e);
-
-            }            
-        }
-
-        $('table.ports tbody').on('change', 'select', onSwitchChange);
-        $('table.ports tbody').on('change', 'input', onSwitchChange);
     }
 
-    function onSwitchChange(e) {
-        let $cT  = $(e.currentTarget);
-
-        let functionName = $cT.val();
-        let rule = serialPortHelper.getRuleByName($cT.val());
-
-        //if type is checkbox then process only if selected
-        if ($cT.is('input[type="checkbox"]') && !$cT.is(':checked')) {
-            return;
-        }
-        //if type select then process only if selected
-        if ($cT.is('select') && !functionName) {
-            return;
-        }
-
-        // Check if MSP checkbox was just checked
-        if ($cT.is('input[type="checkbox"]') && $cT.val() === 'MSP' && $cT.is(':checked')) {
-            // Count MSP ports excluding the one being changed to get "before" count
-            const mspCountBefore = checkMSPPortCount($cT);
-            // If we already had 2+ and are adding another, show warning
-            if (mspCountBefore >= 2) {
-                showMSPWarning();
+    function renderAll() {
+        $('.tab-ports .portConfiguration').each(function () {
+            const $row = $(this);
+            const uiPort = uiPorts.find(function (port) {
+                return port.identifier === $row.data('identifier');
+            });
+            if (uiPort) {
+                renderRow($row, uiPort);
             }
+        });
+    }
+
+    function portByRow($row) {
+        const identifier = $row.data('identifier');
+        return uiPorts.find(function (uiPort) {
+            return uiPort.identifier === identifier;
+        });
+    }
+
+    function onFunctionChange(e) {
+        const $row = $(e.currentTarget).closest('tr');
+        const uiPort = portByRow($row);
+        const mspCountBefore = countMspPorts();
+
+        uiPort.function = $(e.currentTarget).val();
+        uiPort.type = defaultTypeFor(uiPort.function);
+        uiPort.baudrate = defaultBaudFor(uiPort);
+
+        if (uiPort.type === RECEIVER) {
+            claimReceiver(uiPort.identifier);
         }
 
-        if (rule && rule.isUnique) {
-            let $selects = $cT.closest('tr').find('.function-select');
-            $selects.each(function (index, element) {
-
-                let $element = $(element);
-
-                if ($element.val() != functionName) {
-                    $element.val('').trigger('change');
-                }
-            });
-
-            let $checkboxes = $cT.closest('tr').find('input[type="checkbox"]');
-            $checkboxes.each(function (index, element) {
-                let $element = $(element);
-
-                if ($element.val() != functionName) {
-                    $element.prop('checked', false);
-                    $element.trigger('change');
-                }
-            });
+        if (uiPort.function === 'MSP' && mspCountBefore >= 2) {
+            showMSPWarning();
         }
 
+        clearValidation();
+        renderAll();
+    }
+
+    function onTypeChange(e) {
+        const $row = $(e.currentTarget).closest('tr');
+        const uiPort = portByRow($row);
+
+        uiPort.type = $(e.currentTarget).val();
+
+        // Only a real protocol subtype carries baud metadata. Toggling the
+        // MAVLink receiver role is not a protocol change, so it must not throw
+        // away the baud the user picked for the port.
+        if (serialPortHelper.getRuleByName(uiPort.type)) {
+            uiPort.baudrate = defaultBaudFor(uiPort);
+        }
+
+        if (uiPort.type === RECEIVER) {
+            claimReceiver(uiPort.identifier);
+        }
+
+        clearValidation();
+        renderAll();
+    }
+
+    function onBaudChange(e) {
+        const $row = $(e.currentTarget).closest('tr');
+        portByRow($row).baudrate = $(e.currentTarget).val();
+    }
+
+    function update_ui() {
+        $('.tab-ports').addClass('supported');
+
+        const ports_e = $('.tab-ports .ports');
+        const port_configuration_template_e = $('#tab-ports-templates .portConfiguration');
+
+        uiPorts = [];
+        previousPorts = {};
+
+        FC.SERIAL_CONFIG.ports.forEach(function (serialPort) {
+            // USB VCP keeps whatever the FC reports: it is the link this
+            // configurator is talking over, so it is not editable here.
+            if (serialPort.identifier === VCP_IDENTIFIER) {
+                return;
+            }
+
+            previousPorts[serialPort.identifier] = serialPort;
+            const uiPort = serialPortHelper.decodeSerialPort(serialPort);
+            uiPorts.push(uiPort);
+
+            const port_configuration_e = port_configuration_template_e.clone();
+            port_configuration_e.data('identifier', serialPort.identifier);
+            port_configuration_e.find('.identifier').text(serialPortHelper.getPortName(serialPort.identifier));
+            port_configuration_e.find('.softSerialWarning')
+                .css('display', serialPort.identifier >= 30 ? 'inline' : 'none');
+
+            renderRow(port_configuration_e, uiPort);
+            ports_e.find('tbody').append(port_configuration_e);
+        });
+
+        $('table.ports tbody').on('change', 'select.port-function', onFunctionChange);
+        $('table.ports tbody').on('change', 'select.port-type', onTypeChange);
+        $('table.ports tbody').on('change', 'select.port-baud', onBaudChange);
+    }
+
+    function clearValidation() {
+        $('.tab-ports .portConfiguration').removeClass('invalid');
+    }
+
+    /*
+     * The receiver port has to agree with the provider set on the Receiver tab.
+     * This cannot be fixed automatically - either the port or the provider is
+     * wrong and only the user knows which - so the save is refused instead.
+     */
+    function validateReceiverAssignment() {
+        if (!receiverIsSerial()) {
+            return null;
+        }
+
+        const receiverPort = uiPorts.find(function (uiPort) {
+            return uiPort.type === RECEIVER;
+        });
+        if (!receiverPort) {
+            return null;
+        }
+
+        const portName = serialPortHelper.getPortName(receiverPort.identifier);
+
+        if (receiverMustBeMavlink() && receiverPort.function !== 'MAVLINK') {
+            return {
+                identifier: receiverPort.identifier,
+                message: i18n.getMessage('portsReceiverMismatchMavlink', [portName])
+            };
+        }
+
+        if (!receiverMustBeMavlink() && receiverPort.function === 'MAVLINK') {
+            return {
+                identifier: receiverPort.identifier,
+                message: i18n.getMessage('portsReceiverMismatchSerialRx', [serialRxProvider, portName])
+            };
+        }
+
+        return null;
     }
 
     function on_tab_loaded_handler() {
 
-       i18n.localize();;
+        i18n.localize();
 
         update_ui();
 
-        // Initialize the MSP warning modal
         mspWarningModal = new jBox('Modal', {
             width: 480,
             height: 200,
@@ -231,9 +345,7 @@ portsTab.initialize = function (callback) {
             content: $('#mspWarningContent')
         });
 
-        // Check if more than 2 MSP ports are already configured on load
-        const initialMspCount = checkMSPPortCount();
-        if (initialMspCount > 2) {
+        if (countMspPorts() > 2) {
             showMSPWarning();
         }
 
@@ -242,50 +354,26 @@ portsTab.initialize = function (callback) {
         GUI.content_ready(callback);
     }
 
-   function on_save_handler() {
+    function on_save_handler() {
 
-        //Clear ports of any previous for serials different than USB VCP
-        FC.SERIAL_CONFIG.ports = FC.SERIAL_CONFIG.ports.filter(item => item.identifier == 20)
+        clearValidation();
 
-        $('.tab-ports .portConfiguration').each(function () {
+        const problem = validateReceiverAssignment();
+        if (problem) {
+            $('.tab-ports .portConfiguration').filter(function () {
+                return $(this).data('identifier') === problem.identifier;
+            }).addClass('invalid');
+            GUI.log(problem.message);
+            return;
+        }
 
-            var portConfiguration_e = this;
-
-            var oldSerialPort = $(this).data('serialPort');
-
-            if (oldSerialPort.identifier == 20) {
-                return;
-            }
-
-            var functions = $(portConfiguration_e).find('input:checkbox:checked').map(function() {
-                return this.value;
-            }).get();
-
-            var telemetryFunction = $(portConfiguration_e).find('select[name=function-telemetry]').val();
-            if (telemetryFunction) {
-                functions.push(telemetryFunction);
-            }
-
-            var peripheralFunction = $(portConfiguration_e).find('select[name=function-peripherals]').val();
-            if (peripheralFunction) {
-                functions.push(peripheralFunction);
-            }
-
-            var sensorsFunction = $(portConfiguration_e).find('select[name=function-sensors]').val();
-            if (sensorsFunction) {
-                functions.push(sensorsFunction);
-            }
-
-            var serialPort = {
-                functions: functions,
-                msp_baudrate: $(portConfiguration_e).find('.msp_baudrate').val(),
-                telemetry_baudrate: $(portConfiguration_e).find('.telemetry_baudrate').val(),
-                sensors_baudrate: $(portConfiguration_e).find('.sensors_baudrate').val(),
-                peripherals_baudrate: $(portConfiguration_e).find('.peripherals_baudrate').val(),
-                identifier: oldSerialPort.identifier
-            };
-            FC.SERIAL_CONFIG.ports.push(serialPort);
+        const vcpPorts = FC.SERIAL_CONFIG.ports.filter(function (serialPort) {
+            return serialPort.identifier === VCP_IDENTIFIER;
         });
+
+        FC.SERIAL_CONFIG.ports = vcpPorts.concat(uiPorts.map(function (uiPort) {
+            return serialPortHelper.encodeSerialPort(uiPort, previousPorts[uiPort.identifier]);
+        }));
 
         mspHelper.saveSerialPorts(save_to_eeprom);
 
@@ -307,22 +395,6 @@ portsTab.initialize = function (callback) {
         }
     }
 };
-
-function updateDefaultBaud(baudSelect, column) {
-    let section = $("#" + baudSelect);
-    let portName = section.find('.function-' + column).val();
-    let baudRate = (column === 'telemetry') ? "AUTO" : 115200;;
-
-    let rule = serialPortHelper.getRuleByName(portName);
-
-    if (rule && typeof rule.defaultBaud !== 'undefined') {
-        baudRate = rule.defaultBaud;
-    }
-
-    const $baudSelect = section.find("." + column + "_baudrate");
-    $baudSelect.children('[value=' + baudRate + ']').prop('selected', true);
-    $baudSelect.prop('disabled', !!(rule && rule.lockedBaud));
-}
 
 portsTab.cleanup = function (callback) {
     $('.jBox-wrapper').remove();
