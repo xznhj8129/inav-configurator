@@ -43,17 +43,50 @@
     border-left: 0px;
 }
 
-.tab-ports .function input {
-    vertical-align: -2px;
+/* Four columns do not need the full content width - size them to their
+   contents instead of stretching the selects across the page. */
+.tab-ports .ports {
+    width: auto;
 }
 
-.tab-ports .function label {
-    margin-right: 5px;
+/* The port column sizes to its own content so SOFTSERIAL1 still fits. */
+.tab-ports .ports td:nth-child(1) {
+    width: 1px;
+    white-space: nowrap;
+}
+
+.tab-ports .ports .identifier {
+    font-weight: bold;
+}
+
+.tab-ports .ports td:nth-child(2) {
+    width: 100px;
+}
+
+.tab-ports .ports td:nth-child(3) {
+    width: 170px;
+}
+
+.tab-ports .ports td:nth-child(4) {
+    width: 80px;
 }
 
 .tab-ports select {
     border: 1px solid silver;
     margin-right: 3px;
+    width: 100%;
+}
+
+.tab-ports select:disabled {
+    color: #999;
+}
+
+.tab-ports .portConfiguration.invalid td {
+    background-color: #ffecec;
+}
+
+.tab-ports .portConfiguration.invalid select {
+    border-color: #c0392b;
 }
 
 .tab-ports .require-support {
