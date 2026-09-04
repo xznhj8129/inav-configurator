@@ -11,6 +11,7 @@ import VTX from './../js/vtx';
 import i18n from './../js/localization';
 import Settings from './../js/settings';
 import features from './../js/feature_framework';
+import portsTable from './../js/portsTable';
 
 const configurationTab = {};
 
@@ -91,7 +92,8 @@ configurationTab.initialize = function (callback, scrollPosition) {
         mspHelper.loadBoardAlignment,
         mspHelper.loadCurrentMeterConfig,
         mspHelper.loadMiscV2,
-        mspHelper.loadSerialPorts
+        mspHelper.loadSerialPorts,
+        portsTable.loadReceiverSettings
     ];
 
     loadChainer.setChain(loadChain);
@@ -107,6 +109,7 @@ configurationTab.initialize = function (callback, scrollPosition) {
         mspHelper.saveCurrentMeterConfig,
         mspHelper.saveMiscV2,
         saveSettings,
+        mspHelper.saveSerialPorts,
         mspHelper.saveToEeprom
     ];
 
@@ -333,7 +336,17 @@ configurationTab.initialize = function (callback, scrollPosition) {
             console.error('Settings load failed, dependent controls not initialized:', error);
         });
 
+        portsTable.render($('.tab-configuration table.ports'));
+
         $('a.save').on('click', function () {
+            // A port assignment that contradicts the configured receiver
+            // provider cannot be resolved automatically, so refuse the save
+            // rather than write something the FC will not honour.
+            if (portsTable.validate($('.tab-configuration table.ports'))) {
+                return;
+            }
+            portsTable.apply();
+
             //UPDATE: moved to GPS tab and hidden
             //FC.MISC.mag_declination = parseFloat($('#mag_declination').val());
 
@@ -368,6 +381,7 @@ configurationTab.initialize = function (callback, scrollPosition) {
 };
 
 configurationTab.cleanup = function (callback) {
+    portsTable.cleanup();
     if (callback) callback();
 };
 

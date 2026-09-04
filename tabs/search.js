@@ -31,7 +31,6 @@ const tabNames = [
  "osd",
  "outputs",
  "pid_tuning",
- "ports",
  "programming",
  "receiver",
  "receiver_msp",

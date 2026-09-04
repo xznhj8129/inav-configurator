@@ -39,7 +39,6 @@ var GUI_control = function () {
         'onboard_logging',
         'outputs',
         'pid_tuning',
-        'ports',
         'receiver',
         'sensors',
         'calibration',

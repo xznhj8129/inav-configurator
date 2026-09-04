@@ -30,7 +30,6 @@ import firmwareFlasherTab from './../tabs/firmware_flasher';
 import sitlTab from './../tabs/sitl';
 import auxiliaryTab from './../tabs/auxiliary';
 import adjustmentsTab from './../tabs/adjustments';
-import portsTab from './../tabs/ports'
 import ledStripTab from './../tabs/led_strip';
 import failsafeTab from './../tabs/failsafe';
 import setupTab from './../tabs/setup'
@@ -368,9 +367,6 @@ $(function() {
                             break;
                         case 'adjustments':
                             adjustmentsTab.initialize(content_ready);
-                            break;
-                        case 'ports':
-                           portsTab.initialize(content_ready);
                             break;
                         case 'led_strip':
                             ledStripTab.initialize(content_ready);
