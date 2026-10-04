@@ -20,6 +20,7 @@ const tabNames = [
  "failsafe",
  "firmware_flasher",
  "gps",
+ "hardware",
  "landing",
  "led_strip",
  "logging",

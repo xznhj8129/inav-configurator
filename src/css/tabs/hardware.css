@@ -1,0 +1,40 @@
+/* Hardware tab layout. Box chrome (gui_box, spacer_box, titlebar) is shared
+   with the Configuration tab and lives in configuration.css. The column widths
+   are kept here rather than shared with it, so this tab's proportions can be
+   tuned without moving Configuration's. */
+
+/*
+ * The left column is as wide as its content needs and no wider, capped at half
+ * the tab. It is never squeezed below that content: the port table's columns
+ * are fixed widths, and compressing the box would cut the table off rather than
+ * reflow it. min-content is that floor, computed by the browser, so the widths
+ * stay defined in one place instead of being estimated here.
+ */
+.tab-hardware .leftWrapper {
+    float: left;
+    max-width: calc(50% - 2em);
+    min-width: min-content;
+}
+
+/*
+ * Takes whatever is left beside the float, so this is the column that gives up
+ * width as the window shrinks. overflow establishes a block formatting context,
+ * which is what stops it sliding under the float.
+ */
+.tab-hardware .rightWrapper {
+    overflow: hidden;
+    margin: 0 0 10px 3em;
+}
+
+/* The boxes in the left column are floated by the shared .gui_box rule, so
+   without this a narrow one could sit beside its neighbour instead of under
+   it. Sensors & Buses belongs under Ports. */
+.tab-hardware .leftWrapper .gui_box {
+    clear: left;
+}
+
+@media only screen and (max-width: 1055px) , only screen and (max-device-width: 1055px) {
+    .tab-hardware .rightWrapper {
+        margin: 0 0 10px 15px;
+    }
+}

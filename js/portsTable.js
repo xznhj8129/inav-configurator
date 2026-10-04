@@ -9,15 +9,26 @@ import jBox from 'jbox';
 
 /*
  * The serial port editor. Renders one row per port - Port / Function / Type /
- * Baudrate - into a table supplied by whichever tab hosts it, and translates
- * between that and FC.SERIAL_CONFIG.
+ * Baudrate, plus the Shared MSP pair - into a table supplied by whichever tab
+ * hosts it, and translates between that and FC.SERIAL_CONFIG.
  *
  * The host tab owns loading and saving; this module owns the rows and the
  * rules about what a valid port assignment is.
  */
 
 const VCP_IDENTIFIER = 20;
+
+// Identifiers at or above this are soft serial, whose names are twice as long
+// as a UART's and carry a warning icon.
+const SOFTSERIAL_IDENTIFIER = 30;
+
+// Slots offered by the parked MAVLink port option.
+// const MAVLINK_PORTS = ['MAV1', 'MAV2', 'MAV3', 'MAV4'];
 const RECEIVER = serialPortHelper.RECEIVER;
+
+// What a port's MSP side starts at when sharing is switched on and the port
+// has no stored msp_baudrate to fall back to.
+const DEFAULT_MSP_BAUD = '115200';
 
 // Cap on waiting for receiver_type/serialrx_provider before letting the host
 // tab carry on without them.
@@ -148,8 +159,43 @@ function claimReceiver(identifier) {
 
 function countMspPorts() {
     return uiPorts.filter(function (uiPort) {
-        return uiPort.function === 'MSP';
+        return uiPort.function === 'MSP' || sharesMsp(uiPort);
     }).length;
+}
+
+/*
+ * Which MAVLink slot the port belongs to. Parked: the control works, but
+ * encodeSerialPort() has no field to write it to, so it is not rendered.
+ * The selection was held on the uiPort so it survived a re-render.
+ */
+// function renderMavlinkPortOption($row, uiPort) {
+//     const $mavlinkPort = $row.find('select.port-mavlink-port');
+//     const isMavlink = uiPort.function === 'MAVLINK';
+//
+//     $row.find('.port-option--mavlink-port').toggle(isMavlink);
+//
+//     $mavlinkPort.empty();
+//     if (!isMavlink) {
+//         return;
+//     }
+//
+//     MAVLINK_PORTS.forEach(function (slot) {
+//         $mavlinkPort.append($('<option/>', { value: slot, text: slot }));
+//     });
+//     $mavlinkPort.val(uiPort.mavlinkPort || MAVLINK_PORTS[0]);
+// }
+
+/* Sharing is a property of the telemetry protocol, so it does not survive a
+ * change of function or of protocol. */
+function clearSharedMsp(uiPort) {
+    uiPort.sharedMsp = false;
+    uiPort.mspBaudrate = '';
+}
+
+/* A telemetry port that yields to MSP while disarmed is an MSP port too. */
+function sharesMsp(uiPort) {
+    return uiPort.function === 'TELEMETRY' &&
+        !!uiPort.sharedMsp && serialPortHelper.canShareMsp(uiPort.type);
 }
 
 function showMSPWarning() {
@@ -207,6 +253,49 @@ function renderRow($row, uiPort) {
         $baud.val('');
         $baud.prop('disabled', true);
     }
+
+    renderOptions($row, uiPort);
+}
+
+/*
+ * The Options column carries whatever extra settings the selected port type
+ * offers, and stays empty when it offers none. Shared MSP is the only option
+ * so far: it applies to a telemetry protocol whose firmware backend yields the
+ * port while disarmed. Its baud select follows the switch, since an unshared
+ * port has no second link to configure.
+ */
+function renderOptions($row, uiPort) {
+    const $shared = $row.find('input.port-shared-msp');
+    const $mspBaud = $row.find('select.port-msp-baud');
+
+    const shareable = uiPort.function === 'TELEMETRY' && serialPortHelper.canShareMsp(uiPort.type);
+    const sharing = shareable && !!uiPort.sharedMsp;
+
+    $shared.prop('checked', sharing);
+    // The label and switch travel together - the switch is the label+span that
+    // GUI.switchery() built around the input, so the option group is shown and
+    // hidden as a unit.
+    $row.find('.port-option--shared-msp').toggle(shareable);
+
+    // renderMavlinkPortOption($row, uiPort);
+
+    $mspBaud.empty().toggle(sharing);
+    if (!sharing) {
+        return;
+    }
+
+    // Same reasoning as the main baud select: a port may already carry a rate
+    // the MSP list does not offer, and rendering it as the first option would
+    // silently change the user's configuration.
+    const options = serialPortHelper.getBaudsForCategory('MSP').slice();
+    if (uiPort.mspBaudrate && options.indexOf(String(uiPort.mspBaudrate)) === -1) {
+        options.push(String(uiPort.mspBaudrate));
+    }
+
+    options.forEach(function (baud) {
+        $mspBaud.append($('<option/>', { value: baud, text: baud }));
+    });
+    $mspBaud.val(uiPort.mspBaudrate);
 }
 
 function renderAll($table) {
@@ -244,21 +333,43 @@ portsTable.render = function ($table) {
         uiPorts.push(uiPort);
 
         const $row = $('<tr class="portConfiguration">' +
-            '<td class="identifierCell"><span class="identifier"></span>' +
+            '<td class="port-column identifierCell"><span class="identifier"></span>' +
             '<span class="softSerialWarning" title="' + i18n.getMessage('softSerialWarning') + '">' +
             '<img src="./images/icons/cf_icon_armed_active.svg" height="12" width="12" /></span></td>' +
-            '<td><select class="port-function"></select></td>' +
-            '<td><select class="port-type"></select></td>' +
-            '<td><select class="port-baud"></select></td>' +
+            '<td class="function-column"><select class="port-function"></select></td>' +
+            '<td class="type-column"><select class="port-type"></select></td>' +
+            '<td class="baud-column"><select class="port-baud"></select></td>' +
+            '<td class="options-column">' +
+            '<span class="port-option port-option--shared-msp">' +
+            '<span class="port-option__label">' + i18n.getMessage('portsColumnSharedMsp') + '</span>' +
+            '<input type="checkbox" class="port-shared-msp toggle" />' +
+            '<select class="port-msp-baud"></select></span>' +
+            // MAVLink slot selector - parked until there is something on the FC
+            // to bind it to. Uncomment these three lines with the matching
+            // blocks below to bring it back.
+            // '<span class="port-option port-option--mavlink-port">' +
+            // '<span class="port-option__label">' + i18n.getMessage('portsOptionMavlinkPort') + '</span>' +
+            // '<select class="port-mavlink-port"></select></span>' +
+            '</td>' +
             '</tr>');
 
         $row.data('identifier', serialPort.identifier);
         $row.find('.identifier').text(serialPortHelper.getPortName(serialPort.identifier));
-        $row.find('.softSerialWarning').toggle(serialPort.identifier >= 30);
+        $row.find('.softSerialWarning').toggle(serialPort.identifier >= SOFTSERIAL_IDENTIFIER);
 
         renderRow($row, uiPort);
         $body.append($row);
     });
+
+    // The Port column is the one fixed width that is set from the rendered rows
+    // rather than from the worst case: which ports a board has does not change
+    // while the tab is open, and most boards have no soft serial to make room
+    // for.
+    $table.toggleClass('has-softserial', uiPorts.some(function (uiPort) {
+        return uiPort.identifier >= SOFTSERIAL_IDENTIFIER;
+    }));
+
+    GUI.switchery();
 
     $body.off('change.portsTable');
     $body.on('change.portsTable', 'select.port-function', function (e) {
@@ -268,6 +379,7 @@ portsTable.render = function ($table) {
         uiPort.function = $(e.currentTarget).val();
         uiPort.type = defaultTypeFor(uiPort.function);
         uiPort.baudrate = defaultBaudFor(uiPort);
+        clearSharedMsp(uiPort);
 
         if (uiPort.type === RECEIVER) {
             claimReceiver(uiPort.identifier);
@@ -293,6 +405,10 @@ portsTable.render = function ($table) {
             uiPort.baudrate = defaultBaudFor(uiPort);
         }
 
+        if (!serialPortHelper.canShareMsp(uiPort.type)) {
+            clearSharedMsp(uiPort);
+        }
+
         if (uiPort.type === RECEIVER) {
             claimReceiver(uiPort.identifier);
         }
@@ -303,6 +419,38 @@ portsTable.render = function ($table) {
 
     $body.on('change.portsTable', 'select.port-baud', function (e) {
         portByRow($(e.currentTarget).closest('tr')).baudrate = $(e.currentTarget).val();
+    });
+
+    $body.on('change.portsTable', 'input.port-shared-msp', function (e) {
+        const uiPort = portByRow($(e.currentTarget).closest('tr'));
+        const mspCountBefore = countMspPorts();
+
+        uiPort.sharedMsp = $(e.currentTarget).is(':checked');
+
+        if (uiPort.sharedMsp) {
+            // Fall back to the stored msp_baudrate before inventing one, so
+            // re-enabling a share the user turned off returns the port to the
+            // rate it already had.
+            const stored = previousPorts[uiPort.identifier];
+            uiPort.mspBaudrate = (stored && stored.msp_baudrate) || DEFAULT_MSP_BAUD;
+        } else {
+            uiPort.mspBaudrate = '';
+        }
+
+        if (uiPort.sharedMsp && mspCountBefore >= 2) {
+            showMSPWarning();
+        }
+
+        portsTable.clearValidation($table);
+        renderAll($table);
+    });
+
+    // $body.on('change.portsTable', 'select.port-mavlink-port', function (e) {
+    //     portByRow($(e.currentTarget).closest('tr')).mavlinkPort = $(e.currentTarget).val();
+    // });
+
+    $body.on('change.portsTable', 'select.port-msp-baud', function (e) {
+        portByRow($(e.currentTarget).closest('tr')).mspBaudrate = $(e.currentTarget).val();
     });
 
     if (countMspPorts() > 2) {

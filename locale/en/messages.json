@@ -169,6 +169,9 @@
     "tabCalibration": {
         "message": "Calibration"
     },
+    "tabHardware": {
+        "message": "Hardware"
+    },
     "tabConfiguration": {
         "message": "Configuration"
     },
@@ -1723,6 +1726,15 @@
     },
     "portsColumnBaudrate": {
         "message": "Baudrate"
+    },
+    "portsColumnOptions": {
+        "message": "Options"
+    },
+    "portsOptionMavlinkPort": {
+        "message": "Port"
+    },
+    "portsColumnSharedMsp": {
+        "message": "Shared MSP"
     },
     "portsCategory_NONE": {
         "message": "None"

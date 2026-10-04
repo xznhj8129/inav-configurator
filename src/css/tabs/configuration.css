@@ -60,7 +60,8 @@
 }
 
 .config-section .spacer_box,
-.tab-configuration .spacer_box {
+.tab-configuration .spacer_box,
+.tab-hardware .spacer_box {
     padding-bottom: 10px;
     float: left;
     width: calc(100% - 20px);
@@ -114,7 +115,8 @@ hr {
     margin-bottom: 0;
 }
 
-.tab-configuration .gui_box_titlebar {
+.tab-configuration .gui_box_titlebar,
+.tab-hardware .gui_box_titlebar {
     margin-bottom: 0;
 }
 
@@ -122,7 +124,8 @@ hr {
     display: none;
 }
 
-.tab-configuration .gui_box {
+.tab-configuration .gui_box,
+.tab-hardware .gui_box {
     margin-bottom: 10px;
     float: left;
 }
@@ -148,11 +151,13 @@ hr {
     width: 175px;
 }
 
-.tab-configuration .gui_box {
+.tab-configuration .gui_box,
+.tab-hardware .gui_box {
     font-family: 'open_sanssemibold', Arial, serif;
 }
 
-.tab-configuration .gui_box span {
+.tab-configuration .gui_box span,
+.tab-hardware .gui_box span {
     font-style: normal;
     font-family: 'open_sansregular', Arial, serif;
     line-height: 19px;
@@ -196,7 +201,8 @@ hr {
 }
 
 @media only screen and (max-width: 1055px) , only screen and (max-device-width: 1055px) {
-    .tab-configuration .gui_box span {
+    .tab-configuration .gui_box span,
+    .tab-hardware .gui_box span {
         line-height: 17px;
     }
 

@@ -11,7 +11,6 @@ import VTX from './../js/vtx';
 import i18n from './../js/localization';
 import Settings from './../js/settings';
 import features from './../js/feature_framework';
-import portsTable from './../js/portsTable';
 
 const configurationTab = {};
 
@@ -91,9 +90,7 @@ configurationTab.initialize = function (callback, scrollPosition) {
         mspHelper.loadVTXConfig,
         mspHelper.loadBoardAlignment,
         mspHelper.loadCurrentMeterConfig,
-        mspHelper.loadMiscV2,
-        mspHelper.loadSerialPorts,
-        portsTable.loadReceiverSettings
+        mspHelper.loadMiscV2
     ];
 
     loadChainer.setChain(loadChain);
@@ -109,7 +106,6 @@ configurationTab.initialize = function (callback, scrollPosition) {
         mspHelper.saveCurrentMeterConfig,
         mspHelper.saveMiscV2,
         saveSettings,
-        mspHelper.saveSerialPorts,
         mspHelper.saveToEeprom
     ];
 
@@ -294,40 +290,8 @@ configurationTab.initialize = function (callback, scrollPosition) {
         $('#battery_capacity_critical').val(isNaN(batCapWarnCrit) ? "" : batCapWarnCrit);
         $('#battery_capacity_unit').val(FC.MISC.battery_capacity_unit);
 
-        let $i2cSpeed = $('#i2c_speed'),
-            $i2cSpeedInfo = $('#i2c_speed-info');
-
-        $i2cSpeed.on('change', function () {
-            let $this = $(this),
-                value = $this.children("option:selected").text();
-
-            if (value == "400KHZ") {
-
-                $i2cSpeedInfo.removeClass('ok-box');
-                $i2cSpeedInfo.addClass('info-box');
-                $i2cSpeedInfo.removeClass('warning-box');
-
-                $i2cSpeedInfo.html(i18n.getMessage('i2cSpeedSuggested800khz'));
-                $i2cSpeedInfo.show();
-
-            } else if (value == "800KHZ") {
-                $i2cSpeedInfo.removeClass('ok-box');
-                $i2cSpeedInfo.removeClass('info-box');
-                $i2cSpeedInfo.removeClass('warning-box');
-                $i2cSpeedInfo.hide();
-            } else {
-                $i2cSpeedInfo.removeClass('ok-box');
-                $i2cSpeedInfo.removeClass('info-box');
-                $i2cSpeedInfo.addClass('warning-box');
-                $i2cSpeedInfo.html(i18n.getMessage('i2cSpeedTooLow'));
-                $i2cSpeedInfo.show();
-            }
-
-        });
-
         // Wait for settings to load before triggering change event
         settingsPromise.then(function() {
-            $i2cSpeed.trigger('change');
             $('#vbat_meter_type, #current_meter_type').on('change', updateIna226SettingsVisibility);
             updateIna226SettingsVisibility();
             updateMztcSettingsVisibility();
@@ -336,17 +300,7 @@ configurationTab.initialize = function (callback, scrollPosition) {
             console.error('Settings load failed, dependent controls not initialized:', error);
         });
 
-        portsTable.render($('.tab-configuration table.ports'));
-
         $('a.save').on('click', function () {
-            // A port assignment that contradicts the configured receiver
-            // provider cannot be resolved automatically, so refuse the save
-            // rather than write something the FC will not honour.
-            if (portsTable.validate($('.tab-configuration table.ports'))) {
-                return;
-            }
-            portsTable.apply();
-
             //UPDATE: moved to GPS tab and hidden
             //FC.MISC.mag_declination = parseFloat($('#mag_declination').val());
 
@@ -381,7 +335,6 @@ configurationTab.initialize = function (callback, scrollPosition) {
 };
 
 configurationTab.cleanup = function (callback) {
-    portsTable.cleanup();
     if (callback) callback();
 };
 

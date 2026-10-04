@@ -153,8 +153,12 @@ test('decode/encode: peripheral round-trips with the peripheral baud', () => {
 });
 
 for (const legacy of [
-    ['MSP', 'TELEMETRY_LTM'],
+    // MAVLink is a datalink like MSP, not a telemetry protocol that yields the
+    // port when disarmed, so the pair stays unsupported.
     ['MSP', 'TELEMETRY_MAVLINK'],
+    // GSM_SMS ignores determinePortSharing() in the firmware, so sharing it
+    // with MSP would not do what the combination implies.
+    ['MSP', 'GSM_SMS'],
     ['RX_SERIAL', 'TELEMETRY_LTM'],
     ['GPS', 'TBS_SMARTAUDIO'],
     ['TELEMETRY_LTM', 'BLACKBOX'],
@@ -195,6 +199,64 @@ test('encode: None clears the functions but keeps the stored bauds', () => {
         { identifier: 1, function: 'NONE', type: '', baudrate: '' }, original);
     assert.deepEqual(encoded.functions, []);
     assert.equal(encoded.sensors_baudrate, '19200');
+});
+
+test('decode/encode: telemetry shared with MSP round-trips', () => {
+    const ui = serialPortHelper.decodeSerialPort(
+        port(['TELEMETRY_LTM', 'MSP'], { telemetry_baudrate: '57600', msp_baudrate: '115200' }));
+    assert.equal(ui.function, 'TELEMETRY');
+    assert.equal(ui.type, 'TELEMETRY_LTM');
+    assert.equal(ui.sharedMsp, true);
+    assert.equal(ui.baudrate, '57600');
+    assert.equal(ui.mspBaudrate, '115200');
+
+    const encoded = serialPortHelper.encodeSerialPort(ui, port(['TELEMETRY_LTM', 'MSP']));
+    assert.deepEqual(encoded.functions, ['TELEMETRY_LTM', 'MSP']);
+    assert.equal(encoded.telemetry_baudrate, '57600');
+    assert.equal(encoded.msp_baudrate, '115200');
+});
+
+test('decode: MSP may appear before the telemetry function', () => {
+    const ui = serialPortHelper.decodeSerialPort(port(['MSP', 'TELEMETRY_SMARTPORT']));
+    assert.equal(ui.function, 'TELEMETRY');
+    assert.equal(ui.type, 'TELEMETRY_SMARTPORT');
+    assert.equal(ui.sharedMsp, true);
+});
+
+test('decode: an unshared telemetry port reports sharedMsp false', () => {
+    const ui = serialPortHelper.decodeSerialPort(port(['TELEMETRY_LTM']));
+    assert.equal(ui.function, 'TELEMETRY');
+    assert.equal(ui.sharedMsp, false);
+    assert.equal(ui.mspBaudrate, '');
+});
+
+test('encode: sharing is refused for a protocol the firmware does not share', () => {
+    // The UI does not offer the toggle here; the codec must not honour it
+    // either if a stale uiPort carries it.
+    const encoded = serialPortHelper.encodeSerialPort(
+        { identifier: 1, function: 'TELEMETRY', type: 'GSM_SMS', baudrate: '57600',
+          sharedMsp: true, mspBaudrate: '115200' },
+        port(['GSM_SMS']));
+    assert.deepEqual(encoded.functions, ['GSM_SMS']);
+});
+
+test('encode: clearing the share drops MSP but keeps the stored msp baud', () => {
+    const original = port(['TELEMETRY_LTM', 'MSP'], { msp_baudrate: '57600' });
+    const encoded = serialPortHelper.encodeSerialPort(
+        { identifier: 1, function: 'TELEMETRY', type: 'TELEMETRY_LTM', baudrate: 'AUTO',
+          sharedMsp: false, mspBaudrate: '' },
+        original);
+    assert.deepEqual(encoded.functions, ['TELEMETRY_LTM']);
+    assert.equal(encoded.msp_baudrate, '57600');
+});
+
+test('canShareMsp: only the backends that call determinePortSharing()', () => {
+    for (const name of ['TELEMETRY_HOTT', 'TELEMETRY_SMARTPORT', 'TELEMETRY_LTM', 'TELEMETRY_IBUS']) {
+        assert.equal(serialPortHelper.canShareMsp(name), true, name + ' should be shareable');
+    }
+    for (const name of ['GSM_SMS', 'TELEMETRY_MAVLINK', 'GPS', 'BLACKBOX', 'RX_SERIAL', '']) {
+        assert.equal(serialPortHelper.canShareMsp(name), false, name + ' should not be shareable');
+    }
 });
 
 test('categories: every rule maps to exactly one category', () => {

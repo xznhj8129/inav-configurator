@@ -1,55 +1,126 @@
-/* Serial port editor, hosted in the Configuration tab's left column. */
+/* Serial port editor, hosted in the Hardware tab's left column. */
 
-.tab-configuration .config-section.ports table.ports {
-    width: 100%;
+/*
+ * The table is exactly its columns wide. It must not be sized as a percentage
+ * of its box: a percentage contributes nothing to intrinsic width, so the box
+ * and the column above it could shrink underneath the table and cut it off.
+ * max-content makes the real width visible to them instead.
+ */
+.tab-hardware .config-section.ports table.ports {
+    width: max-content;
     border-collapse: collapse;
+    table-layout: fixed;
 }
 
-.tab-configuration .config-section.ports thead td {
+/* Same reason: the shared .spacer_box is calc(100% - 20px), which would hide
+   the table's width from the layout above it. */
+.tab-hardware .config-section.ports .spacer_box {
+    width: auto;
+}
+
+.tab-hardware .config-section.ports thead td {
     text-align: left;
-    padding: 3px 5px;
     font-weight: bold;
     border-bottom: 1px solid #cbcbcb;
 }
 
-.tab-configuration .config-section.ports td {
-    padding: 3px 5px;
+.tab-hardware .config-section.ports td {
+    padding: 3px 1ch;
+    white-space: nowrap;
     border-bottom: 1px solid #e4e4e4;
 }
 
-.tab-configuration .config-section.ports tbody tr:last-child td {
+/*
+ * Fixed column widths, each sized to the longest entry its dropdown can hold
+ * plus two characters. The dropdown arrow costs roughly three characters more,
+ * so the select columns carry that on top.
+ *
+ *   Port      SOFTSERIAL1          11 + 2, plus the soft-serial warning icon
+ *   Function  Peripheral           10 + 2 + arrow
+ *   Type      ESC output/telemetry 20 + 2 + arrow
+ *   Baudrate  460800                6 + 2 + arrow
+ *
+ * They are fixed rather than shrink-to-fit so the columns do not jump about as
+ * the user changes a port's type.
+ */
+/* UART1 is five characters; SOFTSERIAL1 is eleven and brings a warning icon.
+   portsTable sets has-softserial from the ports the board actually reports, so
+   boards without soft serial do not pay for a name they never show. */
+.tab-hardware .config-section.ports td.port-column {
+    width: 7ch;
+}
+
+.tab-hardware .config-section.ports table.ports.has-softserial td.port-column {
+    width: 15ch;
+}
+
+.tab-hardware .config-section.ports td.function-column {
+    width: 15ch;
+}
+
+.tab-hardware .config-section.ports td.type-column {
+    width: 25ch;
+}
+
+.tab-hardware .config-section.ports td.baud-column {
+    width: 11ch;
+}
+
+/*
+ * Options is fixed like the rest rather than taking what is left over: as the
+ * only flexible column it absorbed every shortfall and was the first thing to
+ * be cut off. Sized for its widest group - the "Shared MSP" label, the switch
+ * and a baud select. It is always present, and renders empty when the selected
+ * type offers no options.
+ */
+.tab-hardware .config-section.ports td.options-column {
+    width: 32ch;
+}
+
+.tab-hardware .config-section.ports tbody tr:last-child td {
     border-bottom: 0;
 }
 
-/* The port name is the row's label, and only needs to be as wide as itself. */
-.tab-configuration .config-section.ports td:first-child {
-    width: 1px;
-    white-space: nowrap;
+/* The port name is the row's label. */
+.tab-hardware .config-section.ports td:first-child {
     font-weight: bold;
 }
 
-.tab-configuration .config-section.ports td:last-child {
-    width: 90px;
+/* One option group: its name, then its controls. */
+.tab-hardware .config-section.ports .port-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.tab-configuration .config-section.ports select {
+.tab-hardware .config-section.ports .port-option__label {
+    color: #4F4F4F;
+}
+
+/* Overrides the full-width select rule above: an option's select sits beside
+   its label rather than filling a column of its own. */
+.tab-hardware .config-section.ports .port-option select {
+    width: auto;
+}
+
+.tab-hardware .config-section.ports select {
     width: 100%;
     border: 1px solid silver;
 }
 
-.tab-configuration .config-section.ports select:disabled {
+.tab-hardware .config-section.ports select:disabled {
     color: #999;
 }
 
-.tab-configuration .config-section.ports .softSerialWarning {
+.tab-hardware .config-section.ports .softSerialWarning {
     margin-left: 4px;
     vertical-align: -1px;
 }
 
-.tab-configuration .config-section.ports .portConfiguration.invalid td {
+.tab-hardware .config-section.ports .portConfiguration.invalid td {
     background-color: #ffecec;
 }
 
-.tab-configuration .config-section.ports .portConfiguration.invalid select {
+.tab-hardware .config-section.ports .portConfiguration.invalid select {
     border-color: #c0392b;
 }
