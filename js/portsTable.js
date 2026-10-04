@@ -247,7 +247,17 @@ function renderRow($row, uiPort) {
         });
         $baud.val(uiPort.baudrate);
         const rule = serialPortHelper.getRuleByName(uiPort.type);
-        $baud.prop('disabled', !!(rule && rule.lockedBaud));
+        $baud.prop('disabled', Boolean(rule?.lockedBaud));
+
+        // SRXL2 starts at 115200 and negotiates upwards, so a number would
+        // mislead. The "auto" option keeps the stored rate as its value.
+        if (rule?.negotiatedBaud) {
+            $baud.append($('<option/>', { value: uiPort.baudrate, text: i18n.getMessage('portsBaudAuto') }));
+            $baud.children().last().prop('selected', true);
+            $baud.attr('title', i18n.getMessage('portsBaudFixedByProtocol'));
+        } else {
+            $baud.removeAttr('title');
+        }
     } else {
         $baud.append($('<option/>', { value: '', text: i18n.getMessage('portsTypeNone') }));
         $baud.val('');
