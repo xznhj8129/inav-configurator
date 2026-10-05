@@ -30,7 +30,7 @@ import firmwareFlasherTab from './../tabs/firmware_flasher';
 import sitlTab from './../tabs/sitl';
 import auxiliaryTab from './../tabs/auxiliary';
 import adjustmentsTab from './../tabs/adjustments';
-import portsTab from './../tabs/ports'
+import hardwareTab from './../tabs/hardware';
 import ledStripTab from './../tabs/led_strip';
 import failsafeTab from './../tabs/failsafe';
 import setupTab from './../tabs/setup'
@@ -284,6 +284,11 @@ $(function() {
 
                 var tabRequiresConnection = $(self).parent().hasClass('mode-connected');
 
+                if (GUI.tunnelHandshakePending) {
+                    GUI.log(i18n.getMessage('mavlinkTunnelHandshakePendingTabRefused'));
+                    return;
+                }
+
                 var tab = tabClass.substring(4);
                 var tabName = $(self).text();
 
@@ -294,6 +299,11 @@ $(function() {
 
                 if (GUI.connect_lock) { // tab switching disabled while operation is in progress
                     GUI.log(i18n.getMessage('tabSwitchWaitForOperation'));
+                    return;
+                }
+
+                if (CONFIGURATOR.mavlinkTunnelActive && GUI.tabsUnavailableOverMavlinkTunnel.includes(tab)) {
+                    GUI.log(i18n.getMessage('tabSwitchMavlinkTunnelUnavailable', [tabName]));
                     return;
                 }
 
@@ -359,8 +369,8 @@ $(function() {
                         case 'adjustments':
                             adjustmentsTab.initialize(content_ready);
                             break;
-                        case 'ports':
-                           portsTab.initialize(content_ready);
+                        case 'hardware':
+                            hardwareTab.initialize(content_ready);
                             break;
                         case 'led_strip':
                             ledStripTab.initialize(content_ready);
@@ -557,6 +567,12 @@ $(function() {
                         store.set('disable_3d_acceleration', check);
                     });
 
+                    // Read by the MAVLink tunnel at the next connect.
+                    $('div.mavlink_telemetry_feed input').prop('checked', store.get('mavlink_telemetry_feed', true) !== false);
+                    $('div.mavlink_telemetry_feed input').on('change', function () {
+                        store.set('mavlink_telemetry_feed', $(this).is(':checked'));
+                    });
+
                     $('div.statistics input').on('change', function () {
                         var check = $(this).is(':checked');
                     });
@@ -657,7 +673,7 @@ $(function() {
                     })
         
                     $('div#options-window').slideDown(250);
-                });
+                }).catch(err => console.error('Options window failed to load: ' + err));
             } else {
                 closeOptions();
             }
