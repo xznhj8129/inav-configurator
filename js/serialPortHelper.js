@@ -48,6 +48,11 @@ const serialPortHelper = (function () {
             isUnique: true
         },
         {
+            name: 'RX_SERIAL_SECONDARY',
+            groups: ['rx'],
+            isUnique: true
+        },
+        {
             name: 'BLACKBOX',
             groups: ['peripherals']
         },
@@ -188,6 +193,7 @@ const serialPortHelper = (function () {
         'RUNCAM_DEVICE_CONTROL': 10,
         'TBS_SMARTAUDIO': 11,
         'IRC_TRAMP': 12,
+        'RX_SERIAL_SECONDARY': 13,
         'OPFLOW': 14,
         'LOG': 15,
         'RANGEFINDER': 16,
@@ -452,8 +458,25 @@ const serialPortHelper = (function () {
     // Functions the Ports tab offers, in dropdown order.
     publicScope.CATEGORIES = ['NONE', 'MSP', 'MAVLINK', 'SERIAL_RX', 'TELEMETRY', 'SENSOR', 'PERIPHERAL'];
 
-    // Pseudo-type marking the port that carries the receiver role.
+    // Pseudo-types marking the ports that carry the receiver roles. With Dual RX
+    // the second link is its own role on its own port.
     publicScope.RECEIVER = 'RECEIVER';
+    publicScope.RECEIVER_SECONDARY = 'RECEIVER_SECONDARY';
+
+    privateScope.receiverFunctions = {
+        RECEIVER: 'RX_SERIAL',
+        RECEIVER_SECONDARY: 'RX_SERIAL_SECONDARY'
+    };
+
+    publicScope.isReceiverType = function (type) {
+        return Object.prototype.hasOwnProperty.call(privateScope.receiverFunctions, type);
+    };
+
+    privateScope.receiverTypeForFunction = function (functionName) {
+        return Object.keys(privateScope.receiverFunctions).find(function (type) {
+            return privateScope.receiverFunctions[type] === functionName;
+        });
+    };
 
     publicScope.getCategoryForFunction = function (functionName) {
         if (functionName === 'TELEMETRY_MAVLINK') {
@@ -505,7 +528,8 @@ const serialPortHelper = (function () {
     /**
      * Firmware functions[] -> one conceptual UI state for the port.
      *
-     * Two multi-function combinations survive: TELEMETRY_MAVLINK + RX_SERIAL,
+     * Two multi-function combinations survive: TELEMETRY_MAVLINK + a receiver
+     * function (RX_SERIAL, or RX_SERIAL_SECONDARY for the second Dual RX link),
      * and a sharing-capable telemetry protocol + MSP, which the firmware runs
      * as MSP while disarmed and telemetry once armed. Every other port
      * carrying more than one function is legacy shared-port configuration and
@@ -533,16 +557,16 @@ const serialPortHelper = (function () {
                 decoded.function = category;
             } else if (category === 'SERIAL_RX') {
                 decoded.function = category;
-                decoded.type = publicScope.RECEIVER;
+                decoded.type = privateScope.receiverTypeForFunction(functionName);
             } else if (category) {
                 decoded.function = category;
                 decoded.type = functionName;
             }
         } else if (functions.length === 2 &&
                    functions.indexOf('TELEMETRY_MAVLINK') !== -1 &&
-                   functions.indexOf('RX_SERIAL') !== -1) {
+                   functions.some(privateScope.receiverTypeForFunction)) {
             decoded.function = 'MAVLINK';
-            decoded.type = publicScope.RECEIVER;
+            decoded.type = privateScope.receiverTypeForFunction(functions.find(privateScope.receiverTypeForFunction));
         } else if (functions.length === 2 && functions.indexOf('MSP') !== -1) {
             const shared = functions.find(function (functionName) {
                 return functionName !== 'MSP';
@@ -591,12 +615,12 @@ const serialPortHelper = (function () {
                 encoded.functions = ['MSP'];
                 break;
             case 'MAVLINK':
-                encoded.functions = uiPort.type === publicScope.RECEIVER
-                    ? ['TELEMETRY_MAVLINK', 'RX_SERIAL']
+                encoded.functions = publicScope.isReceiverType(uiPort.type)
+                    ? ['TELEMETRY_MAVLINK', privateScope.receiverFunctions[uiPort.type]]
                     : ['TELEMETRY_MAVLINK'];
                 break;
             case 'SERIAL_RX':
-                encoded.functions = ['RX_SERIAL'];
+                encoded.functions = [privateScope.receiverFunctions[uiPort.type] || 'RX_SERIAL'];
                 break;
             case 'TELEMETRY':
                 encoded.functions = uiPort.type ? [uiPort.type] : [];

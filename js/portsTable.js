@@ -25,6 +25,7 @@ const SOFTSERIAL_IDENTIFIER = 30;
 // Slots offered by the parked MAVLink port option.
 // const MAVLINK_PORTS = ['MAV1', 'MAV2', 'MAV3', 'MAV4'];
 const RECEIVER = serialPortHelper.RECEIVER;
+const RECEIVER_SECONDARY = serialPortHelper.RECEIVER_SECONDARY;
 
 // What a port's MSP side starts at when sharing is switched on and the port
 // has no stored msp_baudrate to fall back to.
@@ -44,6 +45,9 @@ let previousPorts = {};
 let mspWarningModal = null;
 let receiverType = null;
 let serialRxProvider = null;
+let dualRxEnabled = false;
+let receiverTypeSecondary = null;
+let serialRxProviderSecondary = null;
 
 /*
  * The Receiver tab owns which protocol the receiver speaks; this table only
@@ -73,35 +77,71 @@ portsTable.loadReceiverSettings = function (done) {
     }
     setTimeout(finish, RECEIVER_SETTINGS_TIMEOUT);
 
-    Promise.all([readSetting('receiver_type'), readSetting('serialrx_provider')]).then(function (values) {
+    // Firmware without Dual RX has none of the second-link settings; that is
+    // the same as Dual RX being off, not a failure of the whole read.
+    function readOptionalSetting(name) {
+        return readSetting(name).catch(function () {
+            return null;
+        });
+    }
+
+    Promise.all([
+        readSetting('receiver_type'),
+        readSetting('serialrx_provider'),
+        mspHelper.getSetting('dual_rx_enabled').then(function (setting) {
+            return !!(setting && setting.value);
+        }).catch(function () {
+            return false;
+        }),
+        readOptionalSetting('receiver_type_rx2'),
+        readOptionalSetting('serialrx_provider_rx2')
+    ]).then(function (values) {
         receiverType = values[0];
         serialRxProvider = values[1];
+        dualRxEnabled = values[2];
+        receiverTypeSecondary = values[3];
+        serialRxProviderSecondary = values[4];
     }).catch(function () {
         // An FC that cannot report these simply gets no cross-tab validation.
         receiverType = null;
         serialRxProvider = null;
+        dualRxEnabled = false;
+        receiverTypeSecondary = null;
+        serialRxProviderSecondary = null;
     }).then(finish);
 };
 
-function receiverIsSerial() {
-    return receiverType === 'SERIAL';
+// What the Receiver tab says each receiver role speaks.
+function receiverSettingsFor(type) {
+    if (type === RECEIVER_SECONDARY) {
+        return dualRxEnabled ? { type: receiverTypeSecondary, provider: serialRxProviderSecondary } : null;
+    }
+    return { type: receiverType, provider: serialRxProvider };
 }
 
-function receiverMustBeMavlink() {
-    return receiverIsSerial() && serialRxProvider === 'MAVLINK';
+/*
+ * The second receiver role is offered only while Dual RX is on. A port that
+ * already carries it keeps the option, so it is shown as it is stored instead
+ * of being rewritten as something else on save.
+ */
+function receiverOptionsFor(uiPort) {
+    const options = [{ value: RECEIVER, label: i18n.getMessage('portsTypeReceiver') }];
+    if (dualRxEnabled || (uiPort && uiPort.type === RECEIVER_SECONDARY)) {
+        options.push({ value: RECEIVER_SECONDARY, label: i18n.getMessage('portsTypeReceiverSecondary') });
+    }
+    return options;
 }
 
-function typeOptionsFor(category) {
+function typeOptionsFor(category, uiPort) {
     const none = { value: '', label: i18n.getMessage('portsTypeNone') };
-    const receiver = { value: RECEIVER, label: i18n.getMessage('portsTypeReceiver') };
 
     switch (category) {
         case 'SERIAL_RX':
-            return [receiver];
+            return receiverOptionsFor(uiPort);
         case 'MAVLINK':
             // A MAVLink port without the receiver role still does something -
             // it is a GCS/telemetry link - so do not label it like "off".
-            return [{ value: '', label: i18n.getMessage('portsTypeTelemetry') }, receiver];
+            return [{ value: '', label: i18n.getMessage('portsTypeTelemetry') }].concat(receiverOptionsFor(uiPort));
         case 'TELEMETRY':
         case 'SENSOR':
         case 'PERIPHERAL':
@@ -137,10 +177,10 @@ function defaultBaudFor(uiPort) {
     return baudField === 'telemetry_baudrate' ? 'AUTO' : '115200';
 }
 
-/* The receiver role is global: assigning it to a port takes it off any other. */
-function claimReceiver(identifier) {
+/* Each receiver role is global: assigning it to a port takes it off any other. */
+function claimReceiver(identifier, type) {
     uiPorts.forEach(function (uiPort) {
-        if (uiPort.identifier === identifier || uiPort.type !== RECEIVER) {
+        if (uiPort.identifier === identifier || uiPort.type !== type) {
             return;
         }
 
@@ -224,7 +264,7 @@ function renderRow($row, uiPort) {
     $function.val(uiPort.function);
 
     $type.empty();
-    const typeOptions = typeOptionsFor(uiPort.function);
+    const typeOptions = typeOptionsFor(uiPort.function, uiPort);
     typeOptions.forEach(function (option) {
         $type.append($('<option/>', { value: option.value, text: option.label }));
     });
@@ -391,8 +431,8 @@ portsTable.render = function ($table) {
         uiPort.baudrate = defaultBaudFor(uiPort);
         clearSharedMsp(uiPort);
 
-        if (uiPort.type === RECEIVER) {
-            claimReceiver(uiPort.identifier);
+        if (serialPortHelper.isReceiverType(uiPort.type)) {
+            claimReceiver(uiPort.identifier, uiPort.type);
         }
 
         if (uiPort.function === 'MSP' && mspCountBefore >= 2) {
@@ -419,8 +459,8 @@ portsTable.render = function ($table) {
             clearSharedMsp(uiPort);
         }
 
-        if (uiPort.type === RECEIVER) {
-            claimReceiver(uiPort.identifier);
+        if (serialPortHelper.isReceiverType(uiPort.type)) {
+            claimReceiver(uiPort.identifier, uiPort.type);
         }
 
         portsTable.clearValidation($table);
@@ -473,41 +513,47 @@ portsTable.clearValidation = function ($table) {
 };
 
 /*
- * The receiver port has to agree with the provider set on the Receiver tab.
+ * Each receiver port has to agree with the provider the Receiver tab sets for it.
  * This cannot be fixed automatically - either the port or the provider is
  * wrong and only the user knows which - so the save is refused instead.
  */
 portsTable.validate = function ($table) {
     portsTable.clearValidation($table);
 
-    if (!receiverIsSerial()) {
-        return null;
-    }
-
-    const receiverPort = uiPorts.find(function (uiPort) {
-        return uiPort.type === RECEIVER;
-    });
-    if (!receiverPort) {
-        return null;
-    }
-
-    const portName = serialPortHelper.getPortName(receiverPort.identifier);
     let message = null;
 
-    if (receiverMustBeMavlink() && receiverPort.function !== 'MAVLINK') {
-        message = i18n.getMessage('portsReceiverMismatchMavlink', [portName]);
-    } else if (!receiverMustBeMavlink() && receiverPort.function === 'MAVLINK') {
-        message = i18n.getMessage('portsReceiverMismatchSerialRx', [serialRxProvider, portName]);
-    }
+    [RECEIVER, RECEIVER_SECONDARY].forEach(function (type) {
+        const settings = receiverSettingsFor(type);
+        if (message || !settings || settings.type !== 'SERIAL') {
+            return;
+        }
 
-    if (!message) {
-        return null;
-    }
+        const receiverPort = uiPorts.find(function (uiPort) {
+            return uiPort.type === type;
+        });
+        if (!receiverPort) {
+            return;
+        }
 
-    $table.find('.portConfiguration').filter(function () {
-        return $(this).data('identifier') === receiverPort.identifier;
-    }).addClass('invalid');
-    GUI.log(message);
+        const portName = serialPortHelper.getPortName(receiverPort.identifier);
+        const mustBeMavlink = settings.provider === 'MAVLINK';
+
+        if (mustBeMavlink && receiverPort.function !== 'MAVLINK') {
+            message = i18n.getMessage('portsReceiverMismatchMavlink', [portName]);
+        } else if (!mustBeMavlink && receiverPort.function === 'MAVLINK') {
+            message = i18n.getMessage('portsReceiverMismatchSerialRx', [settings.provider, portName]);
+        }
+
+        if (message) {
+            $table.find('.portConfiguration').filter(function () {
+                return $(this).data('identifier') === receiverPort.identifier;
+            }).addClass('invalid');
+        }
+    });
+
+    if (message) {
+        GUI.log(message);
+    }
 
     return message;
 };

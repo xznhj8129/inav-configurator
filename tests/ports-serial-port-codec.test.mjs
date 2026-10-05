@@ -7,8 +7,9 @@
  *
  * The rules under test:
  *   - a port carries exactly one conceptual function
- *   - TELEMETRY_MAVLINK + RX_SERIAL is the ONLY multi-function combination
- *     that survives; it decodes to MAVLink / Receiver
+ *   - TELEMETRY_MAVLINK + a receiver function is the ONLY multi-function
+ *     combination that survives; it decodes to MAVLink / Receiver (RX_SERIAL)
+ *     or MAVLink / Receiver 2 (RX_SERIAL_SECONDARY, Dual RX)
  *   - every other multi-function port is legacy shared-port configuration and
  *     decodes to None, so saving writes functions=[]
  *   - encoding starts from the port's previous config, so baud fields the
@@ -58,6 +59,7 @@ const helperUrl = writeStub('serialPortHelper.mjs', source);
 const { default: serialPortHelper } = await import(helperUrl);
 
 const RECEIVER = serialPortHelper.RECEIVER;
+const RECEIVER_SECONDARY = serialPortHelper.RECEIVER_SECONDARY;
 
 /** A firmware port config with all four baud fields populated. */
 function port(functions, overrides = {}) {
@@ -117,6 +119,24 @@ test('decode/encode: plain serial RX round-trips', () => {
     assert.equal(ui.type, RECEIVER);
     assert.equal(ui.baudrate, '', 'serial RX has no user-selectable port baud');
     assert.deepEqual(serialPortHelper.encodeSerialPort(ui, port(['RX_SERIAL'])).functions, ['RX_SERIAL']);
+});
+
+// The second Dual RX link must stay the second link through a save: decoding it
+// as the first receiver would rewrite the port as RX_SERIAL.
+test('decode/encode: second serial receiver round-trips', () => {
+    const ui = serialPortHelper.decodeSerialPort(port(['RX_SERIAL_SECONDARY']));
+    assert.equal(ui.function, 'SERIAL_RX');
+    assert.equal(ui.type, RECEIVER_SECONDARY);
+    assert.deepEqual(serialPortHelper.encodeSerialPort(ui, port(['RX_SERIAL_SECONDARY'])).functions, ['RX_SERIAL_SECONDARY']);
+});
+
+test('decode/encode: MAVLink second receiver round-trips as its two-bit pair', () => {
+    const ui = serialPortHelper.decodeSerialPort(port(['RX_SERIAL_SECONDARY', 'TELEMETRY_MAVLINK']));
+    assert.equal(ui.function, 'MAVLINK');
+    assert.equal(ui.type, RECEIVER_SECONDARY);
+
+    const encoded = serialPortHelper.encodeSerialPort(ui, port(['TELEMETRY_MAVLINK', 'RX_SERIAL_SECONDARY']));
+    assert.deepEqual(encoded.functions.slice().sort(), ['RX_SERIAL_SECONDARY', 'TELEMETRY_MAVLINK']);
 });
 
 test('decode/encode: telemetry protocol round-trips', () => {
