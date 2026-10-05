@@ -1778,6 +1778,12 @@
     "portsTypeReceiverSecondary": {
         "message": "Receiver 2"
     },
+    "portsOptionMavlinkPort": {
+        "message": "MAVLink port"
+    },
+    "portsMavlinkNoSlot": {
+        "message": "$1 carries MAVLink but all $2 MAVLink ports are taken, so the flight controller would leave it closed. Free a MAVLink port or change $1 before saving."
+    },
     "portsTypeTelemetry": {
         "message": "Telemetry"
     },

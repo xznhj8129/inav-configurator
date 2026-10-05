@@ -22,8 +22,9 @@ const VCP_IDENTIFIER = 20;
 // as a UART's and carry a warning icon.
 const SOFTSERIAL_IDENTIFIER = 30;
 
-// Slots offered by the parked MAVLink port option.
-// const MAVLINK_PORTS = ['MAV1', 'MAV2', 'MAV3', 'MAV4'];
+// MAVLink port slots: mavlink_port1_serial .. mavlink_port4_serial.
+const MAVLINK_PORT_COUNT = 4;
+const SERIAL_PORT_NONE = -1;
 const RECEIVER = serialPortHelper.RECEIVER;
 const RECEIVER_SECONDARY = serialPortHelper.RECEIVER_SECONDARY;
 
@@ -48,13 +49,17 @@ let serialRxProvider = null;
 let dualRxEnabled = false;
 let receiverTypeSecondary = null;
 let serialRxProviderSecondary = null;
+// Serial port identifier bound to each MAVLink slot, or null on firmware that
+// has no slot bindings (the picker is then hidden).
+let mavlinkBindings = null;
+let storedMavlinkBindings = null;
 
 /*
  * The Receiver tab owns which protocol the receiver speaks; this table only
  * says which port it is on. Both settings are read so a port assignment that
  * contradicts the configured provider can be caught on save.
  */
-portsTable.loadReceiverSettings = function (done) {
+portsTable.loadSettings = function (done) {
     function readSetting(name) {
         return mspHelper.getSetting(name).then(function (setting) {
             if (setting && setting.setting && setting.setting.table && setting.setting.table.values) {
@@ -108,7 +113,25 @@ portsTable.loadReceiverSettings = function (done) {
         dualRxEnabled = false;
         receiverTypeSecondary = null;
         serialRxProviderSecondary = null;
-    }).then(finish);
+    }).then(readMavlinkBindings).then(finish);
+
+    function readMavlinkBindings() {
+        const reads = [];
+        for (let slot = 0; slot < MAVLINK_PORT_COUNT; slot++) {
+            reads.push(mspHelper.getSetting(mavlinkSlotSetting(slot)).then(function (setting) {
+                return setting ? setting.value : null;
+            }).catch(function () {
+                return null;
+            }));
+        }
+        return Promise.all(reads).then(function (values) {
+            const supported = values.every(function (value) {
+                return value !== null && value !== undefined;
+            });
+            storedMavlinkBindings = supported ? values.map(Number) : null;
+            mavlinkBindings = supported ? storedMavlinkBindings.slice() : null;
+        });
+    }
 };
 
 // What the Receiver tab says each receiver role speaks.
@@ -203,27 +226,76 @@ function countMspPorts() {
     }).length;
 }
 
+function mavlinkSlotSetting(slot) {
+    return 'mavlink_port' + (slot + 1) + '_serial';
+}
+
+function mavlinkSlotOf(identifier) {
+    return mavlinkBindings ? mavlinkBindings.indexOf(identifier) : -1;
+}
+
+// Ports outside the table (USB VCP) keep their stored functions.
+function portCarriesMavlink(identifier) {
+    const uiPort = uiPorts.find(function (candidate) {
+        return candidate.identifier === identifier;
+    });
+    if (uiPort) {
+        return uiPort.function === 'MAVLINK';
+    }
+    const serialPort = FC.SERIAL_CONFIG.ports.find(function (candidate) {
+        return candidate.identifier === identifier;
+    });
+    return !!serialPort && serialPort.functions.indexOf('TELEMETRY_MAVLINK') !== -1;
+}
+
 /*
- * Which MAVLink slot the port belongs to. Parked: the control works, but
- * encodeSerialPort() has no field to write it to, so it is not rendered.
- * The selection was held on the uiPort so it survived a re-render.
+ * Every MAVLink port needs a slot, or the firmware leaves it closed. A port
+ * that has none takes the first free slot - unbound first, then one still
+ * naming a port that no longer carries MAVLink. The choice is stored as a
+ * concrete binding, never re-derived from port order.
  */
-// function renderMavlinkPortOption($row, uiPort) {
-//     const $mavlinkPort = $row.find('select.port-mavlink-port');
-//     const isMavlink = uiPort.function === 'MAVLINK';
-//
-//     $row.find('.port-option--mavlink-port').toggle(isMavlink);
-//
-//     $mavlinkPort.empty();
-//     if (!isMavlink) {
-//         return;
-//     }
-//
-//     MAVLINK_PORTS.forEach(function (slot) {
-//         $mavlinkPort.append($('<option/>', { value: slot, text: slot }));
-//     });
-//     $mavlinkPort.val(uiPort.mavlinkPort || MAVLINK_PORTS[0]);
-// }
+function assignMavlinkSlot(uiPort) {
+    if (!mavlinkBindings || uiPort.function !== 'MAVLINK' || mavlinkSlotOf(uiPort.identifier) !== -1) {
+        return;
+    }
+
+    let slot = mavlinkBindings.indexOf(SERIAL_PORT_NONE);
+    if (slot === -1) {
+        slot = mavlinkBindings.findIndex(function (identifier) {
+            return !portCarriesMavlink(identifier);
+        });
+    }
+    if (slot !== -1) {
+        mavlinkBindings[slot] = uiPort.identifier;
+    }
+}
+
+/* Picking a slot another port holds swaps the two ports' slots. */
+function moveMavlinkSlot(uiPort, slot) {
+    const previousSlot = mavlinkSlotOf(uiPort.identifier);
+    const displaced = mavlinkBindings[slot];
+
+    mavlinkBindings[slot] = uiPort.identifier;
+    if (previousSlot !== -1 && previousSlot !== slot) {
+        mavlinkBindings[previousSlot] = displaced;
+    }
+}
+
+function renderMavlinkPortOption($row, uiPort) {
+    const $mavlinkPort = $row.find('select.port-mavlink-port');
+    const shown = !!mavlinkBindings && uiPort.function === 'MAVLINK';
+
+    $row.find('.port-option--mavlink-port').toggle(shown);
+    $mavlinkPort.empty();
+    if (!shown) {
+        return;
+    }
+
+    for (let slot = 0; slot < MAVLINK_PORT_COUNT; slot++) {
+        $mavlinkPort.append($('<option/>', { value: slot, text: 'MAV' + (slot + 1) }));
+    }
+    $mavlinkPort.val(mavlinkSlotOf(uiPort.identifier));
+}
 
 /* Sharing is a property of the telemetry protocol, so it does not survive a
  * change of function or of protocol. */
@@ -327,7 +399,7 @@ function renderOptions($row, uiPort) {
     // hidden as a unit.
     $row.find('.port-option--shared-msp').toggle(shareable);
 
-    // renderMavlinkPortOption($row, uiPort);
+    renderMavlinkPortOption($row, uiPort);
 
     $mspBaud.empty().toggle(sharing);
     if (!sharing) {
@@ -394,12 +466,9 @@ portsTable.render = function ($table) {
             '<span class="port-option__label">' + i18n.getMessage('portsColumnSharedMsp') + '</span>' +
             '<input type="checkbox" class="port-shared-msp toggle" />' +
             '<select class="port-msp-baud"></select></span>' +
-            // MAVLink slot selector - parked until there is something on the FC
-            // to bind it to. Uncomment these three lines with the matching
-            // blocks below to bring it back.
-            // '<span class="port-option port-option--mavlink-port">' +
-            // '<span class="port-option__label">' + i18n.getMessage('portsOptionMavlinkPort') + '</span>' +
-            // '<select class="port-mavlink-port"></select></span>' +
+            '<span class="port-option port-option--mavlink-port">' +
+            '<span class="port-option__label">' + i18n.getMessage('portsOptionMavlinkPort') + '</span>' +
+            '<select class="port-mavlink-port"></select></span>' +
             '</td>' +
             '</tr>');
 
@@ -419,6 +488,11 @@ portsTable.render = function ($table) {
         return uiPort.identifier >= SOFTSERIAL_IDENTIFIER;
     }));
 
+    // A MAVLink port loaded without a slot gets one now, so the save that
+    // follows writes it; otherwise the firmware leaves that port closed.
+    uiPorts.forEach(assignMavlinkSlot);
+    renderAll($table);
+
     GUI.switchery();
 
     $body.off('change.portsTable');
@@ -430,6 +504,7 @@ portsTable.render = function ($table) {
         uiPort.type = defaultTypeFor(uiPort.function);
         uiPort.baudrate = defaultBaudFor(uiPort);
         clearSharedMsp(uiPort);
+        assignMavlinkSlot(uiPort);
 
         if (serialPortHelper.isReceiverType(uiPort.type)) {
             claimReceiver(uiPort.identifier, uiPort.type);
@@ -495,9 +570,11 @@ portsTable.render = function ($table) {
         renderAll($table);
     });
 
-    // $body.on('change.portsTable', 'select.port-mavlink-port', function (e) {
-    //     portByRow($(e.currentTarget).closest('tr')).mavlinkPort = $(e.currentTarget).val();
-    // });
+    $body.on('change.portsTable', 'select.port-mavlink-port', function (e) {
+        moveMavlinkSlot(portByRow($(e.currentTarget).closest('tr')), Number($(e.currentTarget).val()));
+        portsTable.clearValidation($table);
+        renderAll($table);
+    });
 
     $body.on('change.portsTable', 'select.port-msp-baud', function (e) {
         portByRow($(e.currentTarget).closest('tr')).mspBaudrate = $(e.currentTarget).val();
@@ -551,6 +628,17 @@ portsTable.validate = function ($table) {
         }
     });
 
+    // More MAVLink ports than slots: the extra one would never be opened.
+    const unboundMavlinkPort = mavlinkBindings && uiPorts.find(function (uiPort) {
+        return uiPort.function === 'MAVLINK' && mavlinkSlotOf(uiPort.identifier) === -1;
+    });
+    if (!message && unboundMavlinkPort) {
+        message = i18n.getMessage('portsMavlinkNoSlot', [serialPortHelper.getPortName(unboundMavlinkPort.identifier), MAVLINK_PORT_COUNT]);
+        $table.find('.portConfiguration').filter(function () {
+            return $(this).data('identifier') === unboundMavlinkPort.identifier;
+        }).addClass('invalid');
+    }
+
     if (message) {
         GUI.log(message);
     }
@@ -567,6 +655,27 @@ portsTable.apply = function () {
     FC.SERIAL_CONFIG.ports = vcpPorts.concat(uiPorts.map(function (uiPort) {
         return serialPortHelper.encodeSerialPort(uiPort, previousPorts[uiPort.identifier]);
     }));
+};
+
+/* Write the MAVLink slot bindings that changed. Runs in the host tab's save chain. */
+portsTable.saveMavlinkBindings = function (done) {
+    if (!mavlinkBindings) {
+        done();
+        return;
+    }
+
+    let chain = Promise.resolve();
+    mavlinkBindings.forEach(function (identifier, slot) {
+        if (identifier !== storedMavlinkBindings[slot]) {
+            chain = chain.then(function () {
+                return mspHelper.setSetting(mavlinkSlotSetting(slot), identifier);
+            });
+        }
+    });
+    chain.then(function () {
+        storedMavlinkBindings = mavlinkBindings.slice();
+        done();
+    });
 };
 
 portsTable.cleanup = function () {

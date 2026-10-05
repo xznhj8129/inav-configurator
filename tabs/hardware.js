@@ -30,7 +30,7 @@ hardwareTab.initialize = function (callback) {
         // from a copy this tab never read would zero the rest of it.
         mspHelper.loadAdvancedConfig,
         loadSrxl2Status,
-        portsTable.loadReceiverSettings
+        portsTable.loadSettings
     ]);
     loadChainer.setExitPoint(load_html);
     loadChainer.execute();
@@ -40,6 +40,7 @@ hardwareTab.initialize = function (callback) {
     saveChainer.setChain([
         saveSettings,
         saveSrxl2Protocol,
+        portsTable.saveMavlinkBindings,
         mspHelper.saveSerialPorts,
         mspHelper.saveToEeprom
     ]);
