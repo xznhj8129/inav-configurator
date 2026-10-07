@@ -42,7 +42,7 @@ function isMztcPortAssigned() {
 
 function updateMztcSettingsVisibility() {
     // The camera settings only reach the firmware over a UART, so the card is
-    // meaningless until the peripheral is assigned in the Ports tab.
+    // meaningless until the peripheral is assigned in the Hardware tab.
     $('.config-mztc').toggle(isMztcPortAssigned());
 }
 
@@ -90,7 +90,9 @@ configurationTab.initialize = function (callback, scrollPosition) {
         mspHelper.loadVTXConfig,
         mspHelper.loadBoardAlignment,
         mspHelper.loadCurrentMeterConfig,
-        mspHelper.loadMiscV2
+        mspHelper.loadMiscV2,
+        // Only read: the MZTC card shows when a port carries the camera.
+        mspHelper.loadSerialPorts
     ];
 
     loadChainer.setChain(loadChain);

@@ -263,7 +263,7 @@ const serialPortHelper = (function () {
     };
 
     // Each firmware serial function maps to exactly one conceptual category in
-    // the Ports tab. TELEMETRY_MAVLINK is promoted out of 'telemetry' and gets
+    // the Hardware tab. TELEMETRY_MAVLINK is promoted out of 'telemetry' and gets
     // its own top-level function, because MAVLink is the one case where the
     // firmware legitimately wants two bits on one port: adding the receiver
     // role encodes as TELEMETRY_MAVLINK + RX_SERIAL.
@@ -449,7 +449,7 @@ const serialPortHelper = (function () {
         }
     }
 
-    // Functions the Ports tab offers, in dropdown order.
+    // Functions the Hardware tab offers, in dropdown order.
     publicScope.CATEGORIES = ['NONE', 'MSP', 'MAVLINK', 'SERIAL_RX', 'TELEMETRY', 'SENSOR', 'PERIPHERAL'];
 
     // Pseudo-type marking the port that carries the receiver role.
