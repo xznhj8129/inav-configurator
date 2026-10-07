@@ -1748,6 +1748,9 @@
     "portsColumnSharedMsp": {
         "message": "Shared MSP"
     },
+    "portsOptionSharedTelemetry": {
+        "message": "Telemetry"
+    },
     "portsCategory_NONE": {
         "message": "None"
     },

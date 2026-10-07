@@ -7,9 +7,11 @@
  *
  * The rules under test:
  *   - a port carries exactly one conceptual function
- *   - TELEMETRY_MAVLINK + a receiver function is the ONLY multi-function
- *     combination that survives; it decodes to MAVLink / Receiver (RX_SERIAL)
- *     or MAVLink / Receiver 2 (RX_SERIAL_SECONDARY, Dual RX)
+ *   - TELEMETRY_MAVLINK + a receiver function decodes to MAVLink / Receiver
+ *     (RX_SERIAL) or MAVLink / Receiver 2 (RX_SERIAL_SECONDARY, Dual RX)
+ *   - a receiver function + LTM or IBUS telemetry decodes to Serial RX /
+ *     that receiver with the protocol as the port's shared telemetry
+ *   - telemetry + MSP decodes to the telemetry protocol with shared MSP
  *   - every other multi-function port is legacy shared-port configuration and
  *     decodes to None, so saving writes functions=[]
  *   - encoding starts from the port's previous config, so baud fields the
@@ -139,6 +141,35 @@ test('decode/encode: MAVLink second receiver round-trips as its two-bit pair', (
     assert.deepEqual(encoded.functions.slice().sort(), ['RX_SERIAL_SECONDARY', 'TELEMETRY_MAVLINK']);
 });
 
+for (const shared of ['TELEMETRY_LTM', 'TELEMETRY_IBUS']) {
+    test(`decode/encode: serial RX sharing its port with ${shared} round-trips`, () => {
+        const ui = serialPortHelper.decodeSerialPort(port([shared, 'RX_SERIAL']));
+        assert.equal(ui.function, 'SERIAL_RX');
+        assert.equal(ui.type, RECEIVER);
+        assert.equal(ui.sharedTelemetry, shared);
+
+        const encoded = serialPortHelper.encodeSerialPort(ui, port([shared, 'RX_SERIAL']));
+        assert.deepEqual(encoded.functions, ['RX_SERIAL', shared]);
+    });
+}
+
+test('encode: clearing the shared telemetry leaves the receiver alone', () => {
+    const original = port(['RX_SERIAL', 'TELEMETRY_IBUS']);
+    const ui = serialPortHelper.decodeSerialPort(original);
+    ui.sharedTelemetry = '';
+    assert.deepEqual(serialPortHelper.encodeSerialPort(ui, original).functions, ['RX_SERIAL']);
+});
+
+test('decode/encode: second serial receiver sharing its port with LTM round-trips', () => {
+    const ui = serialPortHelper.decodeSerialPort(port(['TELEMETRY_LTM', 'RX_SERIAL_SECONDARY']));
+    assert.equal(ui.function, 'SERIAL_RX');
+    assert.equal(ui.type, RECEIVER_SECONDARY);
+    assert.equal(ui.sharedTelemetry, 'TELEMETRY_LTM');
+
+    const encoded = serialPortHelper.encodeSerialPort(ui, port(['TELEMETRY_LTM', 'RX_SERIAL_SECONDARY']));
+    assert.deepEqual(encoded.functions, ['RX_SERIAL_SECONDARY', 'TELEMETRY_LTM']);
+});
+
 test('decode/encode: telemetry protocol round-trips', () => {
     const ui = serialPortHelper.decodeSerialPort(port(['TELEMETRY_LTM'], { telemetry_baudrate: '57600' }));
     assert.equal(ui.function, 'TELEMETRY');
@@ -179,7 +210,8 @@ for (const legacy of [
     // GSM_SMS ignores determinePortSharing() in the firmware, so sharing it
     // with MSP would not do what the combination implies.
     ['MSP', 'GSM_SMS'],
-    ['RX_SERIAL', 'TELEMETRY_LTM'],
+    // Only LTM and IBUS ride on the receiver's wire.
+    ['RX_SERIAL', 'TELEMETRY_SMARTPORT'],
     ['GPS', 'TBS_SMARTAUDIO'],
     ['TELEMETRY_LTM', 'BLACKBOX'],
     ['MSP', 'RX_SERIAL', 'GPS'],
