@@ -153,6 +153,7 @@ function claimReceiver(identifier) {
             uiPort.function = 'NONE';
             uiPort.type = '';
             uiPort.baudrate = '';
+            uiPort.sharedTelemetry = '';
         }
     });
 }
@@ -269,14 +270,34 @@ function renderRow($row, uiPort) {
 
 /*
  * The Options column carries whatever extra settings the selected port type
- * offers, and stays empty when it offers none. Shared MSP is the only option
- * so far: it applies to a telemetry protocol whose firmware backend yields the
- * port while disarmed. Its baud select follows the switch, since an unshared
- * port has no second link to configure.
+ * offers, and stays empty when it offers none. Shared MSP applies to a
+ * telemetry protocol whose firmware backend yields the port while disarmed;
+ * its baud select follows the switch, since an unshared port has no second
+ * link to configure. Shared telemetry applies to the serial receiver's port,
+ * whose wire can also carry LTM or IBUS telemetry at the receiver's baud.
  */
+function renderSharedTelemetryOption($row, uiPort) {
+    const $telemetry = $row.find('select.port-shared-telemetry');
+    const shareable = uiPort.function === 'SERIAL_RX';
+
+    $row.find('.port-option--shared-telemetry').toggle(shareable);
+    $telemetry.empty();
+    if (!shareable) {
+        return;
+    }
+
+    $telemetry.append($('<option/>', { value: '', text: i18n.getMessage('portsTypeNone') }));
+    serialPortHelper.getReceiverShareableTelemetry().forEach(function (rule) {
+        $telemetry.append($('<option/>', { value: rule.name, text: rule.displayName }));
+    });
+    $telemetry.val(uiPort.sharedTelemetry || '');
+}
+
 function renderOptions($row, uiPort) {
     const $shared = $row.find('input.port-shared-msp');
     const $mspBaud = $row.find('select.port-msp-baud');
+
+    renderSharedTelemetryOption($row, uiPort);
 
     const shareable = uiPort.function === 'TELEMETRY' && serialPortHelper.canShareMsp(uiPort.type);
     const sharing = shareable && !!uiPort.sharedMsp;
@@ -354,6 +375,9 @@ portsTable.render = function ($table) {
             '<span class="port-option__label">' + i18n.getMessage('portsColumnSharedMsp') + '</span>' +
             '<input type="checkbox" class="port-shared-msp toggle" />' +
             '<select class="port-msp-baud"></select></span>' +
+            '<span class="port-option port-option--shared-telemetry">' +
+            '<span class="port-option__label">' + i18n.getMessage('portsOptionSharedTelemetry') + '</span>' +
+            '<select class="port-shared-telemetry"></select></span>' +
             // MAVLink slot selector - parked until there is something on the FC
             // to bind it to. Uncomment these three lines with the matching
             // blocks below to bring it back.
@@ -390,6 +414,7 @@ portsTable.render = function ($table) {
         uiPort.type = defaultTypeFor(uiPort.function);
         uiPort.baudrate = defaultBaudFor(uiPort);
         clearSharedMsp(uiPort);
+        uiPort.sharedTelemetry = '';
 
         if (uiPort.type === RECEIVER) {
             claimReceiver(uiPort.identifier);
@@ -458,6 +483,10 @@ portsTable.render = function ($table) {
     // $body.on('change.portsTable', 'select.port-mavlink-port', function (e) {
     //     portByRow($(e.currentTarget).closest('tr')).mavlinkPort = $(e.currentTarget).val();
     // });
+
+    $body.on('change.portsTable', 'select.port-shared-telemetry', function (e) {
+        portByRow($(e.currentTarget).closest('tr')).sharedTelemetry = $(e.currentTarget).val();
+    });
 
     $body.on('change.portsTable', 'select.port-msp-baud', function (e) {
         portByRow($(e.currentTarget).closest('tr')).mspBaudrate = $(e.currentTarget).val();

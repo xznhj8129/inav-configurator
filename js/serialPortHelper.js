@@ -40,7 +40,8 @@ const serialPortHelper = (function () {
         {
             name: 'TELEMETRY_LTM',
             groups: ['telemetry'],
-            canShareMsp: true
+            canShareMsp: true,
+            canShareReceiver: true
         },
         {
             name: 'RX_SERIAL',
@@ -59,6 +60,7 @@ const serialPortHelper = (function () {
             name: 'TELEMETRY_IBUS',
             groups: ['telemetry'],
             canShareMsp: true,
+            canShareReceiver: true
         },
         {
             name: 'RANGEFINDER',
@@ -493,6 +495,22 @@ const serialPortHelper = (function () {
         return !!(rule && rule.canShareMsp);
     };
 
+    /*
+     * Whether a telemetry protocol can run on the serial receiver's own port.
+     * Mirrors the firmware's TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK, less
+     * MAVLink, which the table offers as the MAVLink port's receiver role.
+     */
+    publicScope.canShareReceiver = function (functionName) {
+        const rule = publicScope.getRuleByName(functionName);
+        return !!(rule && rule.canShareReceiver);
+    };
+
+    publicScope.getReceiverShareableTelemetry = function () {
+        return publicScope.getRules().filter(function (rule) {
+            return rule.canShareReceiver;
+        });
+    };
+
     publicScope.getBaudFieldForCategory = function (category) {
         return privateScope.categoryBaudField[category] || null;
     };
@@ -505,14 +523,16 @@ const serialPortHelper = (function () {
     /**
      * Firmware functions[] -> one conceptual UI state for the port.
      *
-     * Two multi-function combinations survive: TELEMETRY_MAVLINK + RX_SERIAL,
-     * and a sharing-capable telemetry protocol + MSP, which the firmware runs
-     * as MSP while disarmed and telemetry once armed. Every other port
+     * Three multi-function combinations survive: TELEMETRY_MAVLINK + RX_SERIAL;
+     * RX_SERIAL + a receiver-shareable telemetry protocol (LTM, IBUS), which
+     * the firmware sends on the receiver's wire; and a sharing-capable
+     * telemetry protocol + MSP, which the firmware runs as MSP while disarmed
+     * and telemetry once armed. Every other port
      * carrying more than one function is legacy shared-port configuration and
      * decodes to None, so saving the tab writes it back cleared.
      *
      * @param {object} serialPort entry from FC.SERIAL_CONFIG.ports
-     * @returns {{identifier: number, function: string, type: string, baudrate: (string|number), sharedMsp: boolean, mspBaudrate: (string|number)}}
+     * @returns {{identifier: number, function: string, type: string, baudrate: (string|number), sharedMsp: boolean, mspBaudrate: (string|number), sharedTelemetry: string}}
      */
     publicScope.decodeSerialPort = function (serialPort) {
         const functions = serialPort.functions || [];
@@ -522,7 +542,8 @@ const serialPortHelper = (function () {
             type: '',
             baudrate: '',
             sharedMsp: false,
-            mspBaudrate: ''
+            mspBaudrate: '',
+            sharedTelemetry: ''
         };
 
         if (functions.length === 1) {
@@ -543,6 +564,16 @@ const serialPortHelper = (function () {
                    functions.indexOf('RX_SERIAL') !== -1) {
             decoded.function = 'MAVLINK';
             decoded.type = publicScope.RECEIVER;
+        } else if (functions.length === 2 && functions.indexOf('RX_SERIAL') !== -1) {
+            const shared = functions.find(function (functionName) {
+                return functionName !== 'RX_SERIAL';
+            });
+
+            if (publicScope.canShareReceiver(shared)) {
+                decoded.function = 'SERIAL_RX';
+                decoded.type = publicScope.RECEIVER;
+                decoded.sharedTelemetry = shared;
+            }
         } else if (functions.length === 2 && functions.indexOf('MSP') !== -1) {
             const shared = functions.find(function (functionName) {
                 return functionName !== 'MSP';
@@ -576,7 +607,7 @@ const serialPortHelper = (function () {
      * this function does not own survive a trip through another function -
      * switching a GPS port to MAVLink and back keeps the sensor baud.
      *
-     * @param {object} uiPort {identifier, function, type, baudrate, sharedMsp, mspBaudrate}
+     * @param {object} uiPort {identifier, function, type, baudrate, sharedMsp, mspBaudrate, sharedTelemetry}
      * @param {object} previousSerialPort the port's current firmware config
      * @returns {object} entry for FC.SERIAL_CONFIG.ports
      */
@@ -597,6 +628,9 @@ const serialPortHelper = (function () {
                 break;
             case 'SERIAL_RX':
                 encoded.functions = ['RX_SERIAL'];
+                if (publicScope.canShareReceiver(uiPort.sharedTelemetry)) {
+                    encoded.functions.push(uiPort.sharedTelemetry);
+                }
                 break;
             case 'TELEMETRY':
                 encoded.functions = uiPort.type ? [uiPort.type] : [];
