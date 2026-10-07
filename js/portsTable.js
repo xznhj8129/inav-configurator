@@ -32,9 +32,9 @@ const RECEIVER_SECONDARY = serialPortHelper.RECEIVER_SECONDARY;
 // has no stored msp_baudrate to fall back to.
 const DEFAULT_MSP_BAUD = '115200';
 
-// Cap on waiting for receiver_type/serialrx_provider before letting the host
-// tab carry on without them.
-const RECEIVER_SETTINGS_TIMEOUT = 2000;
+// Cap on waiting for the receiver settings and MAVLink slot bindings before
+// letting the host tab carry on without them.
+const SETTINGS_TIMEOUT = 2000;
 
 const portsTable = {};
 
@@ -54,12 +54,26 @@ let serialRxProviderSecondary = null;
 let mavlinkBindings = null;
 let storedMavlinkBindings = null;
 
+function resetSettings() {
+    receiverType = null;
+    serialRxProvider = null;
+    dualRxEnabled = false;
+    receiverTypeSecondary = null;
+    serialRxProviderSecondary = null;
+    mavlinkBindings = null;
+    storedMavlinkBindings = null;
+}
+
 /*
- * The Receiver tab owns which protocol the receiver speaks; this table only
- * says which port it is on. Both settings are read so a port assignment that
- * contradicts the configured provider can be caught on save.
+ * The Receiver tab owns which protocol each receiver speaks; this table only
+ * says which port it is on. Those settings are read so a port assignment that
+ * contradicts the configured provider can be caught on save, together with the
+ * MAVLink slot bindings.
  */
 portsTable.loadSettings = function (done) {
+    // Nothing from a previous visit, or a previous flight controller, carries over.
+    resetSettings();
+
     function readSetting(name) {
         return mspHelper.getSetting(name).then(function (setting) {
             if (setting && setting.setting && setting.setting.table && setting.setting.table.values) {
@@ -69,51 +83,14 @@ portsTable.loadSettings = function (done) {
         });
     }
 
-    // This runs inside the host tab's load chain, so it must always call back.
-    // A settings response that never arrives would otherwise stall the whole
-    // tab; losing the cross-tab check is the acceptable failure, a blank
-    // Configuration page is not.
-    let finished = false;
-    function finish() {
-        if (!finished) {
-            finished = true;
-            done();
-        }
-    }
-    setTimeout(finish, RECEIVER_SETTINGS_TIMEOUT);
-
-    // Firmware without Dual RX has none of the second-link settings; that is
-    // the same as Dual RX being off, not a failure of the whole read.
+    // A setting that cannot be read is unknown, which skips the check that
+    // needs it; firmware without Dual RX or slot bindings simply lacks them.
+    // No read can fail the batch, so one missing setting costs only its check.
     function readOptionalSetting(name) {
         return readSetting(name).catch(function () {
             return null;
         });
     }
-
-    Promise.all([
-        readSetting('receiver_type'),
-        readSetting('serialrx_provider'),
-        mspHelper.getSetting('dual_rx_enabled').then(function (setting) {
-            return !!(setting && setting.value);
-        }).catch(function () {
-            return false;
-        }),
-        readOptionalSetting('receiver_type_rx2'),
-        readOptionalSetting('serialrx_provider_rx2')
-    ]).then(function (values) {
-        receiverType = values[0];
-        serialRxProvider = values[1];
-        dualRxEnabled = values[2];
-        receiverTypeSecondary = values[3];
-        serialRxProviderSecondary = values[4];
-    }).catch(function () {
-        // An FC that cannot report these simply gets no cross-tab validation.
-        receiverType = null;
-        serialRxProvider = null;
-        dualRxEnabled = false;
-        receiverTypeSecondary = null;
-        serialRxProviderSecondary = null;
-    }).then(readMavlinkBindings).then(finish);
 
     function readMavlinkBindings() {
         const reads = [];
@@ -128,10 +105,47 @@ portsTable.loadSettings = function (done) {
             const supported = values.every(function (value) {
                 return value !== null && value !== undefined;
             });
-            storedMavlinkBindings = supported ? values.map(Number) : null;
-            mavlinkBindings = supported ? storedMavlinkBindings.slice() : null;
+            return supported ? values.map(Number) : null;
         });
     }
+
+    // This runs inside the host tab's load chain, so it must always call back.
+    // A settings response that never arrives would otherwise stall the whole
+    // tab; losing the cross-tab checks is the acceptable failure, a blank page
+    // is not. Values that arrive after the tab has rendered are dropped, so the
+    // table validates and saves exactly what it showed.
+    let finished = false;
+    function finish() {
+        if (!finished) {
+            finished = true;
+            done();
+        }
+    }
+    setTimeout(finish, SETTINGS_TIMEOUT);
+
+    Promise.all([
+        readOptionalSetting('receiver_type'),
+        readOptionalSetting('serialrx_provider'),
+        mspHelper.getSetting('dual_rx_enabled').then(function (setting) {
+            return !!(setting && setting.value);
+        }).catch(function () {
+            return false;
+        }),
+        readOptionalSetting('receiver_type_rx2'),
+        readOptionalSetting('serialrx_provider_rx2'),
+        readMavlinkBindings()
+    ]).then(function (values) {
+        if (finished) {
+            return;
+        }
+        receiverType = values[0];
+        serialRxProvider = values[1];
+        dualRxEnabled = values[2];
+        receiverTypeSecondary = values[3];
+        serialRxProviderSecondary = values[4];
+        storedMavlinkBindings = values[5];
+        mavlinkBindings = values[5] ? values[5].slice() : null;
+    }).then(finish);
 };
 
 // What the Receiver tab says each receiver role speaks.
@@ -176,10 +190,25 @@ function typeOptionsFor(category, uiPort) {
     }
 }
 
-function defaultTypeFor(category) {
-    const options = typeOptionsFor(category);
+/*
+ * A port newly set to Serial RX takes the first receiver role no other port
+ * holds, so adding the second receiver does not first claim, and clear, the
+ * port carrying the first. With every offered role taken it takes Receiver,
+ * which moves that role here as an explicit choice would.
+ */
+function defaultReceiverRole(uiPort) {
+    const free = receiverOptionsFor(uiPort).find(function (option) {
+        return !uiPorts.some(function (other) {
+            return other !== uiPort && other.type === option.value;
+        });
+    });
+    return free ? free.value : RECEIVER;
+}
+
+function defaultTypeFor(category, uiPort) {
+    const options = typeOptionsFor(category, uiPort);
     if (category === 'SERIAL_RX') {
-        return RECEIVER;
+        return defaultReceiverRole(uiPort);
     }
     if (category === 'TELEMETRY' || category === 'SENSOR' || category === 'PERIPHERAL') {
         return options.length ? options[0].value : '';
@@ -254,31 +283,52 @@ function portCarriesMavlink(identifier) {
  * naming a port that no longer carries MAVLink. The choice is stored as a
  * concrete binding, never re-derived from port order.
  */
+function freeMavlinkSlot(excludedSlot) {
+    const isFree = function (identifier, slot) {
+        return slot !== excludedSlot && identifier === SERIAL_PORT_NONE;
+    };
+    const isStale = function (identifier, slot) {
+        return slot !== excludedSlot && !portCarriesMavlink(identifier);
+    };
+    const slot = mavlinkBindings.findIndex(isFree);
+    return slot !== -1 ? slot : mavlinkBindings.findIndex(isStale);
+}
+
 function assignMavlinkSlot(uiPort) {
     if (!mavlinkBindings || uiPort.function !== 'MAVLINK' || mavlinkSlotOf(uiPort.identifier) !== -1) {
         return;
     }
 
-    let slot = mavlinkBindings.indexOf(SERIAL_PORT_NONE);
-    if (slot === -1) {
-        slot = mavlinkBindings.findIndex(function (identifier) {
-            return !portCarriesMavlink(identifier);
-        });
-    }
+    const slot = freeMavlinkSlot(-1);
     if (slot !== -1) {
         mavlinkBindings[slot] = uiPort.identifier;
     }
 }
 
-/* Picking a slot another port holds swaps the two ports' slots. */
+/*
+ * Picking a slot another port holds swaps the two ports' slots. A port that
+ * had no slot has nothing to swap, so a MAVLink holder moves to a free slot
+ * instead; with none free the pick is refused rather than leaving the holder
+ * (possibly USB VCP, which is not in this table) unbound. Returns the port
+ * left without a slot, or null.
+ */
 function moveMavlinkSlot(uiPort, slot) {
     const previousSlot = mavlinkSlotOf(uiPort.identifier);
     const displaced = mavlinkBindings[slot];
+
+    if (previousSlot === -1 && displaced !== SERIAL_PORT_NONE && portCarriesMavlink(displaced)) {
+        const freeSlot = freeMavlinkSlot(slot);
+        if (freeSlot === -1) {
+            return displaced;
+        }
+        mavlinkBindings[freeSlot] = displaced;
+    }
 
     mavlinkBindings[slot] = uiPort.identifier;
     if (previousSlot !== -1 && previousSlot !== slot) {
         mavlinkBindings[previousSlot] = displaced;
     }
+    return null;
 }
 
 function renderMavlinkPortOption($row, uiPort) {
@@ -501,7 +551,7 @@ portsTable.render = function ($table) {
         const mspCountBefore = countMspPorts();
 
         uiPort.function = $(e.currentTarget).val();
-        uiPort.type = defaultTypeFor(uiPort.function);
+        uiPort.type = defaultTypeFor(uiPort.function, uiPort);
         uiPort.baudrate = defaultBaudFor(uiPort);
         clearSharedMsp(uiPort);
         assignMavlinkSlot(uiPort);
@@ -571,7 +621,10 @@ portsTable.render = function ($table) {
     });
 
     $body.on('change.portsTable', 'select.port-mavlink-port', function (e) {
-        moveMavlinkSlot(portByRow($(e.currentTarget).closest('tr')), Number($(e.currentTarget).val()));
+        const stranded = moveMavlinkSlot(portByRow($(e.currentTarget).closest('tr')), Number($(e.currentTarget).val()));
+        if (stranded !== null) {
+            GUI.log(i18n.getMessage('portsMavlinkNoSlot', [serialPortHelper.getPortName(stranded), MAVLINK_PORT_COUNT]));
+        }
         portsTable.clearValidation($table);
         renderAll($table);
     });
@@ -657,25 +710,38 @@ portsTable.apply = function () {
     }));
 };
 
-/* Write the MAVLink slot bindings that changed. Runs in the host tab's save chain. */
+/*
+ * Write the MAVLink slot bindings that changed. Runs in the host tab's save
+ * chain and, like Settings.saveInputs(), only moves on from a write that
+ * landed: a refused or dropped write stops the chain before the serial config
+ * that depends on it is saved, and the slot stays marked as unsaved.
+ */
 portsTable.saveMavlinkBindings = function (done) {
     if (!mavlinkBindings) {
         done();
         return;
     }
 
-    let chain = Promise.resolve();
+    const pending = [];
     mavlinkBindings.forEach(function (identifier, slot) {
         if (identifier !== storedMavlinkBindings[slot]) {
-            chain = chain.then(function () {
-                return mspHelper.setSetting(mavlinkSlotSetting(slot), identifier);
-            });
+            pending.push(slot);
         }
     });
-    chain.then(function () {
-        storedMavlinkBindings = mavlinkBindings.slice();
-        done();
-    });
+
+    function saveNext() {
+        if (pending.length === 0) {
+            done();
+            return;
+        }
+        const slot = pending.shift();
+        const identifier = mavlinkBindings[slot];
+        mspHelper.setSetting(mavlinkSlotSetting(slot), identifier, function () {
+            storedMavlinkBindings[slot] = identifier;
+            saveNext();
+        });
+    }
+    saveNext();
 };
 
 portsTable.cleanup = function () {
