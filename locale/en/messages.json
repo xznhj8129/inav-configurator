@@ -1134,7 +1134,7 @@
         "message": "Enable CPU based serial ports"
     },
     "featureSOFTSERIALTip": {
-        "message": "Configure ports on the Ports tab after enabling."
+        "message": "Configure ports on the Hardware tab after enabling."
     },
     "featureGPS": {
         "message": "GPS for navigation and telemetry"
@@ -1260,7 +1260,7 @@
         "message": "<strong>Note:</strong> Not all combinations of features are valid.  When the flight controller firmware detects invalid feature combinations conflicting features will be disabled.<br /><strong>Note:</strong> Configure serial ports <span style=\"color: red\">before</span> enabling the features that will use the ports."
     },
     "configurationSerialRXHelp": {
-        "message": "<strong>Note:</strong> Remember to configure a Serial Port (via Ports tab) for the serial receiver"
+        "message": "<strong>Note:</strong> Remember to configure a Serial Port (via Hardware tab) for the serial receiver"
     },
     "configurationFrSkyOptions": {
         "message": "FrSky Options"
@@ -1821,10 +1821,10 @@
         "message": "A port is assigned to Spektrum Smart ESC, but the ESC protocol above is not SRXL2 - so the port is never opened and the motor is not driven. Set the protocol to SRXL2, then save and reboot. Assigning the port and choosing the protocol are two separate settings."
     },
     "srxl2NoPort": {
-        "message": "No port is assigned to Spektrum Smart ESC. Assign one in the Ports tab, or the motor will not be driven at all - this protocol has no fallback to PWM, because the pin is not a timer output."
+        "message": "No port is assigned to Spektrum Smart ESC. Assign one in the Hardware tab, or the motor will not be driven at all - this protocol has no fallback to PWM, because the pin is not a timer output."
     },
     "srxl2TooFewPorts": {
-        "message": "This model has $1 motors but the board opened only $2 SRXL2 port(s). One ESC needs one port, so assign one per motor in the Ports tab. The board will refuse to arm until they match."
+        "message": "This model has $1 motors but the board opened only $2 SRXL2 port(s). One ESC needs one port, so assign one per motor in the Hardware tab. The board will refuse to arm until they match."
     },
     "srxl2PortCountOpenNoMixer": {
         "message": "SRXL2 ports open on the board: $1. Choose a model in the Mixer tab to set how many motors it has."
@@ -1881,7 +1881,7 @@
         "message": "Refused: the aircraft is armed. Disarm first - this sequence presents full throttle."
     },
     "srxl2CalibrateRefusedNoPort": {
-        "message": "Refused: no SRXL2 ESC port is open. Assign one in the Ports tab, set the motor protocol to SRXL2, and reboot."
+        "message": "Refused: no SRXL2 ESC port is open. Assign one in the Hardware tab, set the motor protocol to SRXL2, and reboot."
     },
     "srxl2CalibrateRefusedBattery": {
         "message": "Refused: the battery is connected. The ESC only learns its throttle range as it powers up, so it has to start with the pack out."
@@ -1989,7 +1989,7 @@
         "message": "MassZero Thermal Camera"
     },
     "configurationThermalCameraNote": {
-        "message": "Assign MZTC_CAMERA to a UART in the Ports tab to enable the camera. The port and its baud rate are set there. The camera ships at 115200."
+        "message": "Assign MZTC_CAMERA to a UART in the Hardware tab to enable the camera. The port and its baud rate are set there. The camera ships at 115200."
     },
     "configurationThermalCameraPreset": {
         "message": "Purpose preset"
@@ -2961,7 +2961,7 @@
         "message": "Orientation is set by: ANGLES (align_mag_roll, align_mag_pitch ,align_mag_yaw)"
     },
     "configurationMagnetometerHelp": {
-        "message": "<strong>Note:</strong> Remember to configure a Serial Port (via Ports tab) when using the Magnetometer feature."
+        "message": "<strong>Note:</strong> Remember to configure a Serial Port (via Hardware tab) when using the Magnetometer feature."
     },
     "magnetometerStatHead": {
         "message": "Mag Statistics"
@@ -3105,7 +3105,7 @@
         "message": "Outboard serial logging device"
     },
     "serialLoggingSupportedNote": {
-        "message": "You can log to an external logging device (such as an OpenLog or compatible clone) by using a serial port. Configure the port on the Ports tab."
+        "message": "You can log to an external logging device (such as an OpenLog or compatible clone) by using a serial port. Configure the port on the Hardware tab."
     },
     "onboardLoggingFlashLogger": {
         "message": "Onboard dataflash chip"

@@ -2074,7 +2074,7 @@ var mspHelper = (function () {
                 // The firmware writes it with the sbufWrite helpers, so there
                 // is no compiler padding to account for here. The serial port
                 // and its baud rate are not in this payload. They live in the
-                // Ports tab.
+                // Hardware tab.
                 if (data.byteLength >= MZTC_CONFIG_BYTES) {
                     FC.MZTC_CONFIG = {
                         preset: data.getUint8(0),

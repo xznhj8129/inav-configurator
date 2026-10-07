@@ -164,7 +164,7 @@ outputsTab.initialize = function (callback) {
         /*
          * SRXL2 is not a timer waveform like every other entry in this list: the
          * ESC hangs off a UART, so the block below only makes sense for it, and a
-         * port has to have been assigned in the Ports tab for it to work at all.
+         * port has to have been assigned in the Hardware tab for it to work at all.
          */
         const SRXL2_PROTOCOL = 7;
 
@@ -220,7 +220,7 @@ outputsTab.initialize = function (callback) {
             });
         }
 
-        /* What the Ports tab currently shows, saved or not. Used only to notice an
+        /* What the Hardware tab currently shows, saved or not. Used only to notice an
          * assignment the board has not rebooted into yet. */
         function srxl2PortsAssignedInUi() {
             if (!FC.SERIAL_CONFIG?.ports) {
