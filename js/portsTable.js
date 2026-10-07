@@ -691,6 +691,11 @@ portsTable.validate = function ($table) {
             return uiPort.type === type;
         });
         if (!receiverPort) {
+            // Dual RX's second serial receiver has no port of its own unless
+            // one is assigned here, so a configuration without it is refused.
+            if (type === RECEIVER_SECONDARY) {
+                message = i18n.getMessage('portsReceiverSecondaryNoPort', [settings.provider]);
+            }
             return;
         }
 

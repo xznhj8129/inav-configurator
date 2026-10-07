@@ -1793,6 +1793,9 @@
     "portsReceiverMismatchMavlink": {
         "message": "The Receiver tab is set to MAVLINK, so the receiver port must be <strong>MAVLink / Receiver</strong>. Fix $1 before saving."
     },
+    "portsReceiverSecondaryNoPort": {
+        "message": "Dual RX is on and the Receiver tab sets Receiver 2 to $1, but no port carries <strong>Receiver 2</strong>. Assign one before saving."
+    },
     "portsReceiverMismatchSerialRx": {
         "message": "The Receiver tab is set to $1, so the receiver port must be <strong>Serial RX / Receiver</strong>. Fix $2 before saving."
     },
