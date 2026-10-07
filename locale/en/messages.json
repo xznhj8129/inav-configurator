@@ -1230,7 +1230,7 @@
         "message": "Dual Receivers"
     },
     "configurationDualReceiversHelp": {
-        "message": "Enables two live receiver links with latched failover. Configure RX2 on the Receiver tab and assign Secondary RX to its serial port on the Ports tab."
+        "message": "Enables two live receiver links with latched failover. Configure RX2 on the Receiver tab and set its serial port to Receiver 2 on the Hardware tab."
     },
     "configurationRSSI": {
         "message": "RSSI (Signal Strength)"
