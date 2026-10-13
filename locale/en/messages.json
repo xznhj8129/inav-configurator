@@ -1787,17 +1787,20 @@
     "portsMavlinkNoSlot": {
         "message": "$1 carries MAVLink but all $2 MAVLink ports are taken, so the flight controller would leave it closed. Free a MAVLink port or change $1 before saving."
     },
+    "portsMavlinkSlotRefused": {
+        "message": "$1 cannot take $2: all $4 MAVLink ports are taken, so $3 would lose $2 and be left closed. Free a MAVLink port first."
+    },
     "portsTypeTelemetry": {
         "message": "Telemetry"
     },
     "portsReceiverMismatchMavlink": {
-        "message": "The Receiver tab is set to MAVLINK, so the receiver port must be <strong>MAVLink / Receiver</strong>. Fix $1 before saving."
+        "message": "The Receiver tab sets $1 to MAVLINK, so its port must be <strong>MAVLink / $1</strong>. Fix $2 before saving."
     },
     "portsReceiverSecondaryNoPort": {
         "message": "Dual RX is on and the Receiver tab sets Receiver 2 to $1, but no port carries <strong>Receiver 2</strong>. Assign one before saving."
     },
     "portsReceiverMismatchSerialRx": {
-        "message": "The Receiver tab is set to $1, so the receiver port must be <strong>Serial RX / Receiver</strong>. Fix $2 before saving."
+        "message": "The Receiver tab sets $1 to $2, so its port must be <strong>Serial RX / $1</strong>. Fix $3 before saving."
     },
     "portsFunction_MSP": {
         "message": "MSP"

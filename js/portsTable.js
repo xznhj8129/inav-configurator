@@ -646,9 +646,14 @@ portsTable.render = function ($table) {
     });
 
     $body.on('change.portsTable', 'select.port-mavlink-port', function (e) {
-        const stranded = moveMavlinkSlot(portByRow($(e.currentTarget).closest('tr')), Number($(e.currentTarget).val()));
+        const uiPort = portByRow($(e.currentTarget).closest('tr'));
+        const slot = Number($(e.currentTarget).val());
+        const stranded = moveMavlinkSlot(uiPort, slot);
         if (stranded !== null) {
-            GUI.log(i18n.getMessage('portsMavlinkNoSlot', [serialPortHelper.getPortName(stranded), MAVLINK_PORT_COUNT]));
+            GUI.log(i18n.getMessage('portsMavlinkSlotRefused', [
+                serialPortHelper.getPortName(uiPort.identifier), 'MAV' + (slot + 1),
+                serialPortHelper.getPortName(stranded), MAVLINK_PORT_COUNT
+            ]));
         }
         portsTable.clearValidation($table);
         renderAll($table);
@@ -700,12 +705,13 @@ portsTable.validate = function ($table) {
         }
 
         const portName = serialPortHelper.getPortName(receiverPort.identifier);
+        const role = i18n.getMessage(type === RECEIVER_SECONDARY ? 'portsTypeReceiverSecondary' : 'portsTypeReceiver');
         const mustBeMavlink = settings.provider === 'MAVLINK';
 
         if (mustBeMavlink && receiverPort.function !== 'MAVLINK') {
-            message = i18n.getMessage('portsReceiverMismatchMavlink', [portName]);
+            message = i18n.getMessage('portsReceiverMismatchMavlink', [role, portName]);
         } else if (!mustBeMavlink && receiverPort.function === 'MAVLINK') {
-            message = i18n.getMessage('portsReceiverMismatchSerialRx', [settings.provider, portName]);
+            message = i18n.getMessage('portsReceiverMismatchSerialRx', [role, settings.provider, portName]);
         }
 
         if (message) {
