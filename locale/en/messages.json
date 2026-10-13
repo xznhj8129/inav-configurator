@@ -1787,6 +1787,9 @@
     "portsMavlinkNoSlot": {
         "message": "$1 carries MAVLink but all $2 MAVLink ports are taken, so the flight controller would leave it closed. Free a MAVLink port or change $1 before saving."
     },
+    "portsSettingsTimeout": {
+        "message": "Some receiver or MAVLink port settings did not arrive. The MAVLink port picker, Receiver 2 and the receiver checks on save may be missing until the tab is reopened."
+    },
     "portsMavlinkSlotRefused": {
         "message": "$1 cannot take $2: all $4 MAVLink ports are taken, so $3 would lose $2 and be left closed. Free a MAVLink port first."
     },

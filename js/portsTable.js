@@ -33,8 +33,10 @@ const RECEIVER_SECONDARY = serialPortHelper.RECEIVER_SECONDARY;
 const DEFAULT_MSP_BAUD = '115200';
 
 // Cap on waiting for the receiver settings and MAVLink slot bindings before
-// letting the host tab carry on without them.
-const SETTINGS_TIMEOUT = 2000;
+// letting the host tab carry on without them. Only a lost reply should reach
+// it: an MSP request that runs out of retries never calls back. Nine reads
+// take over 2 s on SITL.
+const SETTINGS_TIMEOUT = 10000;
 
 const portsTable = {};
 
@@ -112,40 +114,46 @@ portsTable.loadSettings = function (done) {
     // This runs inside the host tab's load chain, so it must always call back.
     // A settings response that never arrives would otherwise stall the whole
     // tab; losing the cross-tab checks is the acceptable failure, a blank page
-    // is not. Values that arrive after the tab has rendered are dropped, so the
-    // table validates and saves exactly what it showed.
+    // is not. Each value is kept as it arrives, so a late one costs only its
+    // own check. Values that arrive after the tab has rendered are dropped, so
+    // the table validates and saves exactly what it showed.
     let finished = false;
+    const timer = setTimeout(function () {
+        if (!finished) {
+            GUI.log(i18n.getMessage('portsSettingsTimeout'));
+            finish();
+        }
+    }, SETTINGS_TIMEOUT);
     function finish() {
         if (!finished) {
             finished = true;
+            clearTimeout(timer);
             done();
         }
     }
-    setTimeout(finish, SETTINGS_TIMEOUT);
+    function keep(read, store) {
+        return read.then(function (value) {
+            if (!finished) {
+                store(value);
+            }
+        });
+    }
 
     Promise.all([
-        readOptionalSetting('receiver_type'),
-        readOptionalSetting('serialrx_provider'),
-        mspHelper.getSetting('dual_rx_enabled').then(function (setting) {
+        keep(readOptionalSetting('receiver_type'), function (value) { receiverType = value; }),
+        keep(readOptionalSetting('serialrx_provider'), function (value) { serialRxProvider = value; }),
+        keep(mspHelper.getSetting('dual_rx_enabled').then(function (setting) {
             return !!(setting && setting.value);
         }).catch(function () {
             return false;
-        }),
-        readOptionalSetting('receiver_type_rx2'),
-        readOptionalSetting('serialrx_provider_rx2'),
-        readMavlinkBindings()
-    ]).then(function (values) {
-        if (finished) {
-            return;
-        }
-        receiverType = values[0];
-        serialRxProvider = values[1];
-        dualRxEnabled = values[2];
-        receiverTypeSecondary = values[3];
-        serialRxProviderSecondary = values[4];
-        storedMavlinkBindings = values[5];
-        mavlinkBindings = values[5] ? values[5].slice() : null;
-    }).then(finish);
+        }), function (value) { dualRxEnabled = value; }),
+        keep(readOptionalSetting('receiver_type_rx2'), function (value) { receiverTypeSecondary = value; }),
+        keep(readOptionalSetting('serialrx_provider_rx2'), function (value) { serialRxProviderSecondary = value; }),
+        keep(readMavlinkBindings(), function (values) {
+            storedMavlinkBindings = values;
+            mavlinkBindings = values ? values.slice() : null;
+        })
+    ]).then(finish);
 };
 
 // What the Receiver tab says each receiver role speaks.
