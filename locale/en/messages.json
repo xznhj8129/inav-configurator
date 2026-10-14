@@ -1815,7 +1815,7 @@
         "message": "Rangefinder"
     },
     "portsFunction_OPFLOW": {
-        "message": "Optic flow"
+        "message": "Optical flow"
     },
     "portsBaudFixedByProtocol": {
         "message": "This protocol sets its own line rate and ignores this setting. SRXL2 opens at 115200, as the specification requires, then negotiates upwards during the handshake."
@@ -1971,7 +1971,7 @@
         "message": "IRC Tramp"
     },
     "portsFunction_VTX_FFPV": {
-        "message": "FuriousFPV Vtx"
+        "message": "FuriousFPV VTX"
     },
     "portsFunction_FRSKY_OSD": {
         "message": "FrSky OSD"
